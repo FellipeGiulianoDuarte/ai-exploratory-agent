@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.claude
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Screenshots and reports (keep directories but ignore content)
+screenshots/*.png
+reports/*.md
+!screenshots/.gitkeep
+!reports/.gitkeep
+# Session state files
+sessions/
+test-results/
+test-screenshots/
+generated-tests/
+findings/
+screenshots/
