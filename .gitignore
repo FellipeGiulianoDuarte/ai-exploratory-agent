@@ -37,3 +37,4 @@ test-screenshots/
 generated-tests/
 findings/
 screenshots/
+playwright-report/

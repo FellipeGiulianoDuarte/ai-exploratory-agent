@@ -168,6 +168,8 @@ The project follows **Clean Architecture** principles with **Domain-Driven Desig
 
 ## Design Decisions and Trade-offs
 
+[docs/TRADE-OFFS.md](docs/TRADE-OFFS.md)
+
 ### 1. Port/Adapter Pattern
 All external dependencies (browser, LLM, storage) are abstracted behind interfaces, enabling easy testing and swapping implementations. This allows the agent to work with different LLM providers and browser automation tools without changing core logic.
 
@@ -186,6 +188,18 @@ Full visibility into LLM token consumption for cost management and optimization.
 ### 6. LLM Provider Choice
 The implementation supports multiple LLM providers (OpenAI, Anthropic, Gemini) with OpenAI as the default. OpenAI was chosen for its reliable API, good instruction following, and cost-effectiveness with the GPT-4o-mini model for exploratory testing tasks.
 
+### 7. LLM Resilience & Fallback
+The system implements a **circuit breaker pattern** for LLM provider failures. If the primary LLM provider is unavailable or rate-limited, the agent automatically falls back to secondary providers without interrupting exploration. The circuit breaker tracks provider health and routes requests to healthy instances.
+
+Key design rationale:
+- **Automatic Failover**: Seamlessly switches to backup providers without manual intervention.
+- **Health Tracking**: Per-provider state machine (closed/open/half-open) ensures failed providers are temporarily bypassed.
+- **Configurable Thresholds**: Failure tolerance and recovery timeouts can be tuned per deployment environment.
+- **Optional Feature**: Circuit breaker is disabled for single-provider setups to minimize overhead.
+
+### 8. Test Generation with Soft Assertions
+The test generator creates Playwright specs that prioritize **false-negative avoidance** over strict correctness. Soft assertions (warnings instead of failures) for accessibility and console errors reduce flakiness without losing visibility into potential issues. Console errors from expected sources (404s, 401s, favicon) are automatically whitelisted.
+
 ## Configuration Options
 
 ### Environment Variables
@@ -194,8 +208,13 @@ The implementation supports multiple LLM providers (OpenAI, Anthropic, Gemini) w
 |----------|---------|-------------|
 | `TARGET_URL` | practice site | URL to explore |
 | `LLM_PROVIDER` | `openai` | LLM provider (openai, gemini, anthropic) |
+| `LLM_FALLBACK_PROVIDERS` | - | Comma-separated fallback providers (e.g., `gemini,anthropic`). Tries primary first, then fallbacks in order. |
 | `OPENAI_API_KEY` | - | OpenAI API key |
 | `LLM_MODEL` | `gpt-4o-mini` | Model to use |
+| `ENABLE_LLM_CIRCUIT_BREAKER` | `true` | Enable circuit breaker for LLM provider failures (set to `false` to disable) |
+| `LLM_CIRCUIT_BREAKER_FAILURE_THRESHOLD` | `5` | Consecutive failures before circuit opens (triggers fallback) |
+| `LLM_CIRCUIT_BREAKER_RESET_MS` | `60000` | Milliseconds to wait before attempting provider recovery (1 minute) |
+| `LLM_CIRCUIT_BREAKER_SUCCESS_THRESHOLD` | `2` | Consecutive successes needed to close circuit and confirm recovery |
 | `MAX_STEPS` | `50` | Maximum exploration steps |
 | `CHECKPOINT_INTERVAL` | `10` | Steps between human checkpoints |
 | `HEADLESS` | `true` | Run browser in headless mode |
@@ -227,3 +246,30 @@ Additional test commands:
 - `npm run test:coverage` - Run with coverage
 - `npm run type-check` - TypeScript type checking
 - `npm run lint` - ESLint code quality check
+
+### Test Generation & Soft Assertions
+
+The system automatically generates Playwright test specs from exploration findings. To reduce flakiness, the test generator uses **soft assertions** (logged warnings) instead of hard failures for accessibility and console error checks:
+
+- **Console Errors**: Expected errors (401, 404, favicon, rate limits) are whitelisted and ignored. Other console errors trigger warnings in test output but don't fail the test. Configure via `LLM_CIRCUIT_BREAKER_IGNORE_CONSOLE_ERRORS` in test config.
+- **Accessibility Issues**: Missing alt text or button labels log warnings instead of failing the test (soft assertion via `console.warn()`).
+- **Text Issues**: Typos and undefined values are counted and logged as warnings rather than strict string matching that breaks on minor content changes.
+
+This approach:
+- **Reduces False Positives**: Tests don't fail on transient network errors (404s from CDN timeouts) or expected auth errors (401 when unauthenticated).
+- **Maintains Coverage**: All issues are still reported in test output, just as non-blocking warnings.
+- **Improves Stability**: Easier to integrate into CI/CD without flaky test gates.
+
+Example generated test:
+```typescript
+// From finding: "Console error detected: 404 favicon"
+// Soft assertion: logged as warning, not a test failure
+console.warn('Console error detected (non-critical): 404 favicon');
+
+// From finding: "Image missing alt text"
+// Soft assertion: counted and logged
+const imagesWithoutAlt = await page.locator('img:not([alt])').count();
+if (imagesWithoutAlt > 0) {
+  console.warn(`Found ${imagesWithoutAlt} images without alt text`);
+}
+```
