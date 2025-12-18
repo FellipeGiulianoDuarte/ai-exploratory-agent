@@ -23,7 +23,18 @@ export const ACTION_DECISION_SCHEMA = {
   properties: {
     action: {
       type: 'string',
-      enum: ['navigate', 'click', 'fill', 'select', 'hover', 'scroll', 'back', 'refresh', 'tool', 'done'],
+      enum: [
+        'navigate',
+        'click',
+        'fill',
+        'select',
+        'hover',
+        'scroll',
+        'back',
+        'refresh',
+        'tool',
+        'done',
+      ],
       description: 'The type of action to perform',
     },
     selector: {
@@ -80,7 +91,8 @@ export const ACTION_DECISION_SCHEMA = {
     observedIssues: {
       type: 'array',
       items: { type: 'string' },
-      description: 'ONLY confirmed bugs visible right now. Each item should describe ONE specific bug: what is wrong and where. Do NOT include "no issues found", status updates, or speculation.',
+      description:
+        'ONLY confirmed bugs visible right now. Each item should describe ONE specific bug: what is wrong and where. Do NOT include "no issues found", status updates, or speculation.',
     },
   },
   required: ['action', 'reasoning', 'confidence'],
@@ -131,7 +143,8 @@ export const FEW_SHOT_EXAMPLES = [
     decision: {
       action: 'click',
       selector: '#submit',
-      reasoning: 'Testing form validation by submitting empty form. This often reveals missing validation or poor error messages.',
+      reasoning:
+        'Testing form validation by submitting empty form. This often reveals missing validation or poor error messages.',
       confidence: 0.85,
       confidenceFactors: ['Clear test case', 'Common bug pattern'],
       hypothesis: 'Form may allow submission without validation',
@@ -153,7 +166,8 @@ export const FEW_SHOT_EXAMPLES = [
       action: 'tool',
       toolName: 'find_broken_images',
       toolParams: {},
-      reasoning: 'Product pages often have broken images due to inventory changes. Running image check to verify all product images load correctly.',
+      reasoning:
+        'Product pages often have broken images due to inventory changes. Running image check to verify all product images load correctly.',
       confidence: 0.9,
       confidenceFactors: ['Images visible on page', 'Common issue area'],
       hypothesis: 'Product images may be broken or missing',
@@ -174,7 +188,8 @@ export const FEW_SHOT_EXAMPLES = [
     decision: {
       action: 'click',
       selector: 'nav a[href="/products"]',
-      reasoning: 'Starting exploration with Products section as it likely contains the most functionality and potential bugs in an e-commerce site.',
+      reasoning:
+        'Starting exploration with Products section as it likely contains the most functionality and potential bugs in an e-commerce site.',
       confidence: 0.8,
       confidenceFactors: ['Unexplored area', 'High-value section'],
       hypothesis: 'Products section will have rich functionality to test',
@@ -211,7 +226,10 @@ export function buildDecisionPrompt(
   // Format elements
   const elementsText = pageContext.elements
     .slice(0, config.context.maxElements)
-    .map((el, i) => `${i + 1}. [${el.type}] ${el.selector} - "${el.text.substring(0, 50)}"${el.isVisible ? '' : ' (hidden)'}`)
+    .map(
+      (el, i) =>
+        `${i + 1}. [${el.type}] ${el.selector} - "${el.text.substring(0, 50)}"${el.isVisible ? '' : ' (hidden)'}`
+    )
     .join('\n');
 
   // Format history with more detail about tool actions
@@ -230,17 +248,17 @@ export function buildDecisionPrompt(
     .join('\n');
 
   // Format tools
-  const toolsText = tools
-    .map(t => `- ${t.name}: ${t.description}`)
-    .join('\n');
+  const toolsText = tools.map(t => `- ${t.name}: ${t.description}`).join('\n');
 
   // Format errors
-  const consoleErrorsText = pageContext.consoleErrors.length > 0
-    ? pageContext.consoleErrors.slice(0, config.context.maxConsoleErrors).join('\n')
-    : 'None';
-  const networkErrorsText = pageContext.networkErrors.length > 0
-    ? pageContext.networkErrors.slice(0, config.context.maxNetworkErrors).join('\n')
-    : 'None';
+  const consoleErrorsText =
+    pageContext.consoleErrors.length > 0
+      ? pageContext.consoleErrors.slice(0, config.context.maxConsoleErrors).join('\n')
+      : 'None';
+  const networkErrorsText =
+    pageContext.networkErrors.length > 0
+      ? pageContext.networkErrors.slice(0, config.context.maxNetworkErrors).join('\n')
+      : 'None';
 
   return `${objective ? `## Objective\n${objective}\n\n` : ''}## Current Page State
 URL: ${pageContext.url}
@@ -262,10 +280,14 @@ ${historyText || 'No previous steps'}
 ## Available Tools
 ${toolsText}
 
-${reportedBugsSummary ? `## Already Reported Bugs (DO NOT REPORT AGAIN)
+${
+  reportedBugsSummary
+    ? `## Already Reported Bugs (DO NOT REPORT AGAIN)
 ${reportedBugsSummary}
 
-` : ''}## Your Task
+`
+    : ''
+}## Your Task
 Analyze the current page state and decide on the next action to take. 
 
 **IMPORTANT - ACTIVELY LOOK FOR BUGS:**
@@ -289,12 +311,16 @@ Analyze the current page state and decide on the next action to take.
 
 **AVOID REPETITION**: Check your history - don't repeat the same action on the same page.
 
-${urlQueueContext ? `## URL Discovery Queue
+${
+  urlQueueContext
+    ? `## URL Discovery Queue
 ${urlQueueContext}
 
 **Navigation Strategy**: Consider visiting unvisited URLs to ensure complete application coverage. Prioritize auth pages first (register before login), then main features.
 
-` : ''}## Bug Reporting Guidelines
+`
+    : ''
+}## Bug Reporting Guidelines
 When reporting bugs in "observedIssues", ONLY report REAL bugs you can see RIGHT NOW:
 
 ✅ REPORT these (real bugs):
@@ -360,7 +386,14 @@ export function buildDecisionPromptWithPersonas(
   const config = getPromptConfig();
 
   // Get base prompt with URL context and reported bugs
-  const basePrompt = buildDecisionPrompt(pageContext, history, tools, objective, urlQueueContext, reportedBugsSummary);
+  const basePrompt = buildDecisionPrompt(
+    pageContext,
+    history,
+    tools,
+    objective,
+    urlQueueContext,
+    reportedBugsSummary
+  );
 
   // Build persona suggestions section
   const relevantPersonas = personaAnalyses.filter(p => p.isRelevant && p.suggestions.length > 0);
@@ -369,23 +402,30 @@ export function buildDecisionPromptWithPersonas(
     return basePrompt;
   }
 
-  const personaSuggestionsText = relevantPersonas.map(persona => {
-    // Limit to top N suggestions per persona, sorted by confidence
-    const topSuggestions = persona.suggestions
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, config.context.maxPersonaSuggestions);
-    
-    const suggestionsText = topSuggestions.map((s, i) => {
-      const actionStr = formatSuggestionAction(s);
-      return `  ${i + 1}. ${actionStr}\n     Reasoning: ${s.reasoning}\n     Risk: ${s.riskLevel}, Confidence: ${Math.round(s.confidence * 100)}%`;
-    }).join('\n');
+  const personaSuggestionsText = relevantPersonas
+    .map(persona => {
+      // Limit to top N suggestions per persona, sorted by confidence
+      const topSuggestions = persona.suggestions
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, config.context.maxPersonaSuggestions);
 
-    return `### ${persona.personaName} (top ${topSuggestions.length} of ${persona.suggestions.length})\n${suggestionsText}`;
-  }).join('\n\n');
+      const suggestionsText = topSuggestions
+        .map((s, i) => {
+          const actionStr = formatSuggestionAction(s);
+          return `  ${i + 1}. ${actionStr}\n     Reasoning: ${s.reasoning}\n     Risk: ${s.riskLevel}, Confidence: ${Math.round(s.confidence * 100)}%`;
+        })
+        .join('\n');
+
+      return `### ${persona.personaName} (top ${topSuggestions.length} of ${persona.suggestions.length})\n${suggestionsText}`;
+    })
+    .join('\n\n');
 
   // Count total suggestions shown
-  const totalShown = relevantPersonas.reduce((sum, p) => sum + Math.min(p.suggestions.length, config.context.maxPersonaSuggestions), 0);
-  
+  const totalShown = relevantPersonas.reduce(
+    (sum, p) => sum + Math.min(p.suggestions.length, config.context.maxPersonaSuggestions),
+    0
+  );
+
   const personaSection = `
 ## Testing Persona Suggestions (${totalShown} shown)
 The following specialized testing personas have suggestions for this page.
@@ -399,10 +439,7 @@ Consider these suggestions when deciding your next action. Prioritize:
 3. Tests that can reveal bugs quickly`;
 
   // Insert persona section before the final task section
-  return basePrompt.replace(
-    '## Your Task',
-    `${personaSection}\n\n## Your Task`
-  );
+  return basePrompt.replace('## Your Task', `${personaSection}\n\n## Your Task`);
 }
 
 /**
@@ -410,12 +447,11 @@ Consider these suggestions when deciding your next action. Prioritize:
  */
 function formatSuggestionAction(suggestion: PersonaSuggestion): string {
   const action = suggestion.action;
-  
+
   switch (action.action) {
     case 'fill':
-      const displayValue = (action.value?.length || 0) > 30 
-        ? action.value?.substring(0, 30) + '...' 
-        : action.value;
+      const displayValue =
+        (action.value?.length || 0) > 30 ? action.value?.substring(0, 30) + '...' : action.value;
       return `FILL "${action.selector}" with "${displayValue}"`;
     case 'click':
       return `CLICK "${action.selector}"`;

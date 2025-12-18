@@ -1,6 +1,6 @@
 /**
  * Testing Personas Module
- * 
+ *
  * Each persona represents a specialized testing approach:
  * - ChaosPersona: "How can I break this?" - destructive testing
  * - SecurityPersona: "Is this secure?" - vulnerability scanning
@@ -37,9 +37,12 @@ export interface PersonaConfig {
 /**
  * Register default personas with the manager based on configuration.
  */
-export function registerDefaultPersonas(manager?: PersonaManager, config?: PersonaConfig): PersonaManager {
+export function registerDefaultPersonas(
+  manager?: PersonaManager,
+  config?: PersonaConfig
+): PersonaManager {
   const pm = manager || getDefaultPersonaManager();
-  
+
   // Default to enabling all personas if no config provided
   const cfg: Required<PersonaConfig> = {
     enableSecurity: config?.enableSecurity ?? true,
@@ -48,23 +51,23 @@ export function registerDefaultPersonas(manager?: PersonaManager, config?: Perso
     enableChaos: config?.enableChaos ?? true,
     enableEdgeCase: config?.enableEdgeCase ?? true,
   };
-  
+
   if (cfg.enableSecurity) {
-    pm.register(new SecurityPersona());   // Priority 10 - Security is most important
+    pm.register(new SecurityPersona()); // Priority 10 - Security is most important
   }
   if (cfg.enableMonitor) {
-    pm.register(new MonitorPersona());    // Priority 9 - Catches runtime issues
+    pm.register(new MonitorPersona()); // Priority 9 - Catches runtime issues
   }
   if (cfg.enableValidation) {
     pm.register(new ValidationPersona()); // Priority 8 - Verifies correctness
   }
   if (cfg.enableChaos) {
-    pm.register(new ChaosPersona());      // Priority 7 - Tries to break things
+    pm.register(new ChaosPersona()); // Priority 7 - Tries to break things
   }
   if (cfg.enableEdgeCase) {
-    pm.register(new EdgeCasePersona());   // Priority 6 - Tests boundaries
+    pm.register(new EdgeCasePersona()); // Priority 6 - Tests boundaries
   }
-  
+
   return pm;
 }
 

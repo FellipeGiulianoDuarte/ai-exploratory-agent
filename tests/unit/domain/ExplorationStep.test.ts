@@ -30,14 +30,17 @@ describe('ExplorationStep', () => {
     });
 
     it('should create a step with a provided ID', () => {
-      const step = ExplorationStep.create({
-        stepNumber: 1,
-        action: createMockAction(),
-        success: true,
-        resultingUrl: 'https://example.com/page',
-        findingIds: [],
-        duration: 1000,
-      }, 'custom-id');
+      const step = ExplorationStep.create(
+        {
+          stepNumber: 1,
+          action: createMockAction(),
+          success: true,
+          resultingUrl: 'https://example.com/page',
+          findingIds: [],
+          duration: 1000,
+        },
+        'custom-id'
+      );
 
       expect(step.id).toBe('custom-id');
     });
@@ -230,14 +233,17 @@ describe('ExplorationStep', () => {
 
   describe('toJSON', () => {
     it('should serialize step to JSON', () => {
-      const step = ExplorationStep.create({
-        stepNumber: 1,
-        action: createMockAction(),
-        success: true,
-        resultingUrl: 'https://example.com/page',
-        findingIds: ['f1'],
-        duration: 1000,
-      }, 'test-id');
+      const step = ExplorationStep.create(
+        {
+          stepNumber: 1,
+          action: createMockAction(),
+          success: true,
+          resultingUrl: 'https://example.com/page',
+          findingIds: ['f1'],
+          duration: 1000,
+        },
+        'test-id'
+      );
 
       const json = step.toJSON();
 

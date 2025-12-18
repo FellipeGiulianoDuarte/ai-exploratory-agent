@@ -15,7 +15,13 @@ export interface PageContentAnalyzerParams {
  * Detected content issue.
  */
 export interface ContentIssue {
-  type: 'undefined_value' | 'null_value' | 'object_object' | 'placeholder' | 'dev_artifact' | 'broken_text';
+  type:
+    | 'undefined_value'
+    | 'null_value'
+    | 'object_object'
+    | 'placeholder'
+    | 'dev_artifact'
+    | 'broken_text';
   severity: 'critical' | 'high' | 'medium' | 'low';
   text: string;
   context: string;
@@ -63,21 +69,10 @@ export class PageContentAnalyzerTool extends BaseTool<
 
   // Patterns for detecting broken UI
   private readonly brokenUIPatterns = {
-    undefined_value: [
-      /\bundefined\b/gi,
-      /\{undefined\}/gi,
-    ],
-    null_value: [
-      /\bnull\b/gi,
-      /\{null\}/gi,
-    ],
-    object_object: [
-      /\[object Object\]/gi,
-      /\{object Object\}/gi,
-    ],
-    nan_value: [
-      /\bNaN\b/g,
-    ],
+    undefined_value: [/\bundefined\b/gi, /\{undefined\}/gi],
+    null_value: [/\bnull\b/gi, /\{null\}/gi],
+    object_object: [/\[object Object\]/gi, /\{object Object\}/gi],
+    nan_value: [/\bNaN\b/g],
   };
 
   private readonly placeholderPatterns = [

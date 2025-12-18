@@ -8,7 +8,13 @@ import {
   LLMResponse,
   LLMCompletionOptions,
 } from '../../application/ports/LLMPort';
-import { SYSTEM_PROMPT, buildDecisionPrompt, FINDING_ANALYSIS_PROMPT, SUMMARY_PROMPT, getPromptConfig } from './prompts';
+import {
+  SYSTEM_PROMPT,
+  buildDecisionPrompt,
+  FINDING_ANALYSIS_PROMPT,
+  SUMMARY_PROMPT,
+  getPromptConfig,
+} from './prompts';
 import { getPromptLogger } from './observability/PromptLogger';
 
 /**
@@ -141,8 +147,7 @@ export class AnthropicAdapter implements LLMPort {
     const config = getPromptConfig();
     const logger = getPromptLogger();
 
-    const prompt = FINDING_ANALYSIS_PROMPT
-      .replace('{{finding}}', finding)
+    const prompt = FINDING_ANALYSIS_PROMPT.replace('{{finding}}', finding)
       .replace('{{url}}', context.url)
       .replace('{{title}}', context.title);
 
@@ -194,10 +199,7 @@ export class AnthropicAdapter implements LLMPort {
   /**
    * Generate a summary of exploration session.
    */
-  async generateSummary(
-    history: ExplorationHistoryEntry[],
-    findings: string[]
-  ): Promise<string> {
+  async generateSummary(history: ExplorationHistoryEntry[], findings: string[]): Promise<string> {
     const config = getPromptConfig();
     const logger = getPromptLogger();
 
@@ -205,8 +207,7 @@ export class AnthropicAdapter implements LLMPort {
     const failedActions = history.filter(h => !h.success).length;
     const pagesVisited = new Set(history.map(h => h.resultingUrl)).size;
 
-    const prompt = SUMMARY_PROMPT
-      .replace('{{totalSteps}}', String(history.length))
+    const prompt = SUMMARY_PROMPT.replace('{{totalSteps}}', String(history.length))
       .replace('{{successfulActions}}', String(successfulActions))
       .replace('{{failedActions}}', String(failedActions))
       .replace('{{pagesVisited}}', String(pagesVisited))

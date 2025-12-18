@@ -140,11 +140,7 @@ export class SystemPromptBuilder {
    * Useful for testing or token-constrained scenarios.
    */
   static buildMinimal(): string {
-    return new SystemPromptBuilder()
-      .addRole()
-      .addResponsibilities()
-      .addOutputFormat()
-      .build();
+    return new SystemPromptBuilder().addRole().addResponsibilities().addOutputFormat().build();
   }
 
   /**

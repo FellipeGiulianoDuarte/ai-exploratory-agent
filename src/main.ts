@@ -43,8 +43,14 @@ async function main(): Promise<void> {
   const positionalArg = args.find(a => !a.startsWith('-'));
 
   // Get configuration from command-line args (flag or positional), then environment, then defaults
-  const targetUrl = cliTargetUrl || positionalArg || process.env.TARGET_URL || 'https://with-bugs.practicesoftwaretesting.com';
-  const objective = cliObjective || process.env.EXPLORATION_OBJECTIVE || 
+  const targetUrl =
+    cliTargetUrl ||
+    positionalArg ||
+    process.env.TARGET_URL ||
+    'https://with-bugs.practicesoftwaretesting.com';
+  const objective =
+    cliObjective ||
+    process.env.EXPLORATION_OBJECTIVE ||
     'Explore the web application thoroughly, looking for bugs, broken images, console errors, and usability issues.';
   const maxSteps = parseInt(process.env.MAX_STEPS || '50', 10);
   const checkpointInterval = parseInt(process.env.CHECKPOINT_INTERVAL || '10', 10);
@@ -65,24 +71,27 @@ async function main(): Promise<void> {
     enableChaos: process.env.ENABLE_CHAOS_PERSONA !== 'false',
     enableEdgeCase: process.env.ENABLE_EDGE_CASE_PERSONA !== 'false',
   };
-  
+
   // Page exploration context configuration
   const maxActionsPerPage = parseInt(process.env.MAX_ACTIONS_PER_PAGE || '8', 10);
   const maxTimePerPage = parseInt(process.env.MAX_TIME_PER_PAGE || '60000', 10);
   const minElementInteractions = parseInt(process.env.MIN_ELEMENT_INTERACTIONS || '3', 10);
   const exitAfterBugsFound = parseInt(process.env.EXIT_AFTER_BUGS_FOUND || '3', 10);
-  const requiredTools = (process.env.REQUIRED_TOOLS || 'analyze,find_broken_images').split(',').map(t => t.trim());
-  
+  const requiredTools = (process.env.REQUIRED_TOOLS || 'analyze,find_broken_images')
+    .split(',')
+    .map(t => t.trim());
+
   // Bug deduplication configuration
   const similarityThreshold = parseFloat(process.env.SIMILARITY_THRESHOLD || '0.6');
   const enablePatternMatching = process.env.ENABLE_PATTERN_MATCHING !== 'false';
   const enableSemanticMatching = process.env.ENABLE_SEMANTIC_MATCHING !== 'false';
-  
+
   // LLM configuration
   const llmProvider = (process.env.LLM_PROVIDER || 'openai') as LLMProvider;
-  const llmApiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY || '';
+  const llmApiKey =
+    process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY || '';
   const llmModel = process.env.LLM_MODEL;
-  
+
   // Browser configuration
   const headless = process.env.HEADLESS !== 'false';
   const verbose = process.env.VERBOSE === 'true';
@@ -114,34 +123,28 @@ async function main(): Promise<void> {
   eventHandlers.register();
 
   // Create exploration service
-  const explorationService = new ExplorationService(
-    browser,
-    llm,
-    findingsRepository,
-    eventBus,
-    {
-      maxSteps,
-      checkpointInterval,
-      defaultObjective: objective,
-      progressSummaryInterval,
-      maxSuggestionsPerPersona,
-      navigationWaitTime,
-      minConfidenceThreshold,
-      checkpointOnToolFindings,
-      enablePersonas,
-      personaConfig,
-      stepTimeout,
-      maxActionsPerPage,
-      maxTimePerPage,
-      minElementInteractions,
-      exitAfterBugsFound,
-      requiredTools,
-      similarityThreshold,
-      enablePatternMatching,
-      enableSemanticMatching,
-      actionLoopMaxRepetitions,
-    }
-  );
+  const explorationService = new ExplorationService(browser, llm, findingsRepository, eventBus, {
+    maxSteps,
+    checkpointInterval,
+    defaultObjective: objective,
+    progressSummaryInterval,
+    maxSuggestionsPerPersona,
+    navigationWaitTime,
+    minConfidenceThreshold,
+    checkpointOnToolFindings,
+    enablePersonas,
+    personaConfig,
+    stepTimeout,
+    maxActionsPerPage,
+    maxTimePerPage,
+    minElementInteractions,
+    exitAfterBugsFound,
+    requiredTools,
+    similarityThreshold,
+    enablePatternMatching,
+    enableSemanticMatching,
+    actionLoopMaxRepetitions,
+  });
 
   // Register tools (HIGH priority tools for enhanced bug detection)
   explorationService.registerTool(new BrokenImageDetectorTool());
@@ -187,7 +190,7 @@ async function main(): Promise<void> {
         console.log(finding.summarize());
       }
     }
-    
+
     // Print token usage
     const tokenUsage = explorationService.getTokenUsage();
     console.log('\n📊 Token Usage');
@@ -199,7 +202,7 @@ async function main(): Promise<void> {
 
     // Generate markdown report
     const reportGenerator = new ReportGenerator({ outputDir: './reports' });
-    
+
     const reportPath = await reportGenerator.generateReport(
       {
         sessionId: result.sessionId,
@@ -215,7 +218,7 @@ async function main(): Promise<void> {
       result.history,
       result.summary
     );
-    
+
     console.log(`\n📄 Report generated: ${reportPath}`);
 
     // Generate Playwright regression tests
@@ -225,17 +228,18 @@ async function main(): Promise<void> {
         baseUrl: targetUrl,
       });
 
-      const testResult = await testGenerator.generateTests(
-        result.findings,
-        result.sessionId
-      );
+      const testResult = await testGenerator.generateTests(result.findings, result.sessionId);
 
       console.log(`\n🧪 Tests generated: ${testResult.filePath}`);
       console.log(`   - ${testResult.testCount} tests created`);
-      console.log(`   - ${testResult.excludedFindings.length} findings excluded (not suitable for automation)`);
+      console.log(
+        `   - ${testResult.excludedFindings.length} findings excluded (not suitable for automation)`
+      );
     }
 
-    console.log(`\n💾 Session saved to: ${sessionRepository.getBaseDir()}/${result.sessionId}.json`);
+    console.log(
+      `\n💾 Session saved to: ${sessionRepository.getBaseDir()}/${result.sessionId}.json`
+    );
 
     process.exit(0);
   } catch (error) {

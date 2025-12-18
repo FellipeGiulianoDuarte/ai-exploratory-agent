@@ -8,7 +8,7 @@ import {
   CheckpointReason,
   HumanGuidance,
 } from '../../domain/exploration/ExplorationSession';
-import { Finding, FindingType } from '../../domain/exploration/Finding';
+import { Finding } from '../../domain/exploration/Finding';
 import { EventBus } from '../../domain/events/DomainEvent';
 import { Tool, ToolContext, ToolDefinition } from '../../domain/tools/Tool';
 import { PageState } from '../../domain/browser/PageState';
@@ -17,6 +17,10 @@ import { URLDiscoveryService } from './URLDiscoveryService';
 import { NavigationPlanner } from './NavigationPlanner';
 import { BugDeduplicationService } from './BugDeduplicationService';
 import { PageExplorationContext } from './PageExplorationContext';
+import { LoopDetectionService } from './LoopDetectionService';
+import { FindingProcessor } from './FindingProcessor';
+import { ProgressReporter } from './ProgressReporter';
+import { loggers } from '../../infrastructure/logging';
 
 /**
  * Configuration for the ExplorationService.
@@ -74,7 +78,8 @@ const DEFAULT_CONFIG: ExplorationServiceConfig = {
   maxSteps: 100,
   checkpointInterval: 10,
   progressSummaryInterval: 5,
-  defaultObjective: 'Explore the web application thoroughly, looking for bugs, broken images, console errors, and usability issues.',
+  defaultObjective:
+    'Explore the web application thoroughly, looking for bugs, broken images, console errors, and usability issues.',
   minConfidenceThreshold: 0.5,
   checkpointOnToolFindings: true,
   stepTimeout: 30000,
@@ -161,17 +166,17 @@ export class ExplorationService {
   private humanCallback?: HumanInteractionCallback;
   private progressCallback?: ProgressCallback;
   private personaManager?: PersonaManager;
-  
+
   // URL Discovery and Navigation Planning
   private urlDiscovery: URLDiscoveryService;
   private navigationPlanner: NavigationPlanner;
-  
+
   // Bug deduplication across pages
   private bugDeduplication: BugDeduplicationService;
-  
+
   // Page-specific exploration context (fresh per page)
   private pageContext: PageExplorationContext;
-  
+
   // Track tool usage per URL to prevent repetitive loops
   private toolUsageByUrl: Map<string, Set<string>> = new Map();
 
@@ -188,8 +193,10 @@ export class ExplorationService {
     totalTokens: 0,
   };
 
-  // Track recent actions to prevent loops (action signature -> count)
-  private recentActions: Map<string, number> = new Map();
+  // Modular services for loop detection, finding processing, and progress reporting
+  private loopDetection: LoopDetectionService;
+  private findingProcessor: FindingProcessor;
+  private progressReporter: ProgressReporter;
 
   // Track steps on current URL for exit criteria
   private stepsOnCurrentUrl = 0;
@@ -214,7 +221,7 @@ export class ExplorationService {
       maxQueueSize: 100,
     });
     this.navigationPlanner = new NavigationPlanner(this.urlDiscovery);
-    console.log('[URLDiscovery] URL discovery and navigation planning enabled');
+    loggers.urlDiscovery.info('URL discovery and navigation planning enabled');
 
     // Initialize bug deduplication service
     this.bugDeduplication = new BugDeduplicationService({
@@ -222,7 +229,7 @@ export class ExplorationService {
       enablePatternMatching: this.config.enablePatternMatching ?? true,
       enableSemanticMatching: this.config.enableSemanticMatching ?? true,
     });
-    
+
     // Initialize page exploration context (fresh context per page)
     this.pageContext = new PageExplorationContext({
       maxActionsPerPage: this.config.maxActionsPerPage ?? 8,
@@ -232,10 +239,18 @@ export class ExplorationService {
       exitAfterBugsFound: this.config.exitAfterBugsFound ?? 3,
     });
 
+    // Initialize modular services
+    this.loopDetection = new LoopDetectionService({
+      toolLoopThreshold: 3,
+      actionLoopThreshold: this.config.actionLoopMaxRepetitions ?? 2,
+    });
+    this.findingProcessor = new FindingProcessor();
+    this.progressReporter = new ProgressReporter();
+
     // Initialize personas if enabled
     if (this.config.enablePersonas) {
       this.personaManager = registerDefaultPersonas(undefined, this.config.personaConfig);
-      
+
       // Log which personas are enabled
       const enabledPersonas = [];
       if (this.config.personaConfig?.enableSecurity !== false) enabledPersonas.push('Security');
@@ -243,8 +258,8 @@ export class ExplorationService {
       if (this.config.personaConfig?.enableValidation !== false) enabledPersonas.push('Validation');
       if (this.config.personaConfig?.enableChaos !== false) enabledPersonas.push('Chaos');
       if (this.config.personaConfig?.enableEdgeCase !== false) enabledPersonas.push('EdgeCase');
-      
-      console.log(`[PersonaManager] Testing personas enabled: ${enabledPersonas.join(', ')}`);
+
+      loggers.personaManager.info(`Testing personas enabled: ${enabledPersonas.join(', ')}`);
     }
   }
 
@@ -293,33 +308,31 @@ export class ExplorationService {
   /**
    * Add suggestions to the queue, limiting per persona and prioritizing by current page.
    */
-  private updateSuggestionQueue(
-    personaAnalyses: PersonaAnalysis[],
-    currentUrl: string
-  ): void {
+  private updateSuggestionQueue(personaAnalyses: PersonaAnalysis[], currentUrl: string): void {
     // Clear old suggestions and rebuild
     this.suggestionQueue = [];
-    
+
     for (const analysis of personaAnalyses) {
       if (!analysis.isRelevant) continue;
-      
+
       // Limit suggestions per persona
       const limitedSuggestions = analysis.suggestions
         .sort((a, b) => b.confidence - a.confidence)
         .slice(0, this.config.maxSuggestionsPerPersona);
-      
+
       for (const suggestion of limitedSuggestions) {
         // Determine target URL - current page or other
-        const targetUrl = suggestion.action.value && suggestion.action.action === 'navigate'
-          ? suggestion.action.value
-          : currentUrl;
-        
+        const targetUrl =
+          suggestion.action.value && suggestion.action.action === 'navigate'
+            ? suggestion.action.value
+            : currentUrl;
+
         // Prioritize same-page suggestions
         const samePage = targetUrl === currentUrl;
-        const priority = samePage 
+        const priority = samePage
           ? suggestion.confidence * 10 + (analysis.suggestions.indexOf(suggestion) < 3 ? 5 : 0)
           : suggestion.confidence;
-        
+
         this.suggestionQueue.push({
           personaName: analysis.personaName,
           action: suggestion.action,
@@ -329,7 +342,7 @@ export class ExplorationService {
         });
       }
     }
-    
+
     // Sort by priority (higher first), same-page items prioritized
     this.suggestionQueue.sort((a, b) => b.priority - a.priority);
   }
@@ -338,9 +351,7 @@ export class ExplorationService {
    * Get top suggestions for current page.
    */
   private getTopSuggestionsForPage(currentUrl: string, limit: number = 5): SuggestionQueueItem[] {
-    return this.suggestionQueue
-      .filter(s => s.targetUrl === currentUrl)
-      .slice(0, limit);
+    return this.suggestionQueue.filter(s => s.targetUrl === currentUrl).slice(0, limit);
   }
 
   /**
@@ -352,27 +363,20 @@ export class ExplorationService {
     recentActions: string[]
   ): void {
     if (!this.progressCallback) {
-      // Default console output
-      console.log('\n' + '─'.repeat(60));
-      console.log(`📊 Progress Update (Step ${session.currentStep}/${this.config.maxSteps})`);
-      console.log('─'.repeat(60));
-      console.log(`📍 Current URL: ${currentUrl}`);
-      console.log(`📄 Pages visited: ${this.visitedPages.size}`);
-      console.log(`🔍 Findings: ${session.findingIds.length}`);
-      console.log(`\n📝 Recent actions:`);
-      recentActions.slice(-3).forEach(a => console.log(`   • ${a}`));
-      
-      if (this.suggestionQueue.length > 0) {
-        console.log(`\n🎯 Persona suggestions queued: ${this.suggestionQueue.length}`);
-        const topSuggestions = this.getTopSuggestionsForPage(currentUrl, 3);
-        if (topSuggestions.length > 0) {
-          console.log(`   Top suggestions for this page:`);
-          topSuggestions.forEach(s => {
-            console.log(`   • [${s.personaName}] ${s.reasoning.substring(0, 60)}...`);
-          });
-        }
-      }
-      console.log('─'.repeat(60) + '\n');
+      // Use ProgressReporter for formatted console output
+      const topSuggestions = this.getTopSuggestionsForPage(currentUrl, 3);
+      this.progressReporter.printProgressSummary(
+        session.currentStep,
+        this.config.maxSteps,
+        {
+          url: currentUrl,
+          pagesVisited: this.visitedPages.size,
+          findings: session.findingIds.length,
+          recentActions: recentActions.slice(-3),
+        },
+        this.suggestionQueue.map(s => ({ personaName: s.personaName, reasoning: s.reasoning })),
+        topSuggestions.map(s => ({ personaName: s.personaName, reasoning: s.reasoning }))
+      );
     } else {
       this.progressCallback.onProgress({
         currentStep: session.currentStep,
@@ -417,10 +421,10 @@ export class ExplorationService {
     this.bugDeduplication.clear();
     this.tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     this.urlDiscovery.clear();
-    this.recentActions.clear();
+    this.loopDetection.reset();
     this.stepsOnCurrentUrl = 0;
     this.lastUrl = '';
-    
+
     // Track recent actions for progress summary
     const recentActions: string[] = [];
 
@@ -435,14 +439,14 @@ export class ExplorationService {
     try {
       // Navigate to start URL
       await this.browser.navigate(startUrl);
-      
+
       // Wait for page to fully load
       await this.wait(this.config.navigationWaitTime);
       this.visitedPages.add(startUrl);
-      
+
       // Initial URL discovery scan
       await this.scanPageForUrls(startUrl);
-      
+
       // Start fresh page context
       const pageTitle = await this.browser.getTitle();
       this.pageContext.startNewPage(startUrl, pageTitle);
@@ -458,7 +462,7 @@ export class ExplorationService {
         // Get current page state
         const pageState = await this.browser.extractPageState();
         const llmPageContext = this.buildPageContext(pageState);
-        
+
         // Track visited page
         this.visitedPages.add(llmPageContext.url);
 
@@ -466,47 +470,50 @@ export class ExplorationService {
         let personaAnalysis: PersonaAnalysis[] | undefined;
         if (this.personaManager) {
           personaAnalysis = this.personaManager.collectSuggestions(llmPageContext, []);
-          
+
           // Update suggestion queue with limited suggestions
           this.updateSuggestionQueue(personaAnalysis, llmPageContext.url);
         }
-        
+
         // Get URL queue context for LLM
         const urlQueueContext = this.navigationPlanner.getPlanContextForLLM();
-        
+
         // Get already reported bugs summary for LLM
         const reportedBugsSummary = this.bugDeduplication.getReportedBugsSummary();
-        
+
         // Check exit criteria for current page
         const exitCriteria = this.pageContext.evaluateExitCriteria();
-        
+
         // Print progress summary at intervals and auto-save session
-        if (session.currentStep > 0 && 
-            session.currentStep % this.config.progressSummaryInterval === 0) {
+        if (
+          session.currentStep > 0 &&
+          session.currentStep % this.config.progressSummaryInterval === 0
+        ) {
           this.printProgressSummary(session, llmPageContext.url, recentActions);
-          
+
           // Periodic auto-save at progress intervals
           if (this.sessionRepository) {
             await this.sessionRepository.save(session);
-            console.log(`[Session] Auto-saved at step ${session.currentStep}`);
+            this.progressReporter.printSessionSaved(session.id, 'auto');
           }
         }
 
         // Get LLM decision with retry logic
         const llmResponse = await this.executeWithRetry(
-          () => this.llm.decideNextAction({
-            pageContext: llmPageContext,
-            history: session.getHistoryForLLM(),
-            tools: this.getToolDefinitions(),
-            objective: sessionConfig.objective,
-            personaAnalysis,
-            urlQueueContext,
-            reportedBugsSummary,
-          }),
+          () =>
+            this.llm.decideNextAction({
+              pageContext: llmPageContext,
+              history: session.getHistoryForLLM(),
+              tools: this.getToolDefinitions(),
+              objective: sessionConfig.objective,
+              personaAnalysis,
+              urlQueueContext,
+              reportedBugsSummary,
+            }),
           3, // max retries
           1000 // initial delay
         );
-        
+
         // Track token usage
         this.tokenUsage.promptTokens += llmResponse.usage.promptTokens;
         this.tokenUsage.completionTokens += llmResponse.usage.completionTokens;
@@ -524,32 +531,31 @@ export class ExplorationService {
         if (llmPageContext.url !== this.lastUrl) {
           if (this.lastUrl) {
             // Log exit from previous page
-            const prevStats = this.pageContext.getStats();
-            console.log(`[PageContext] Exiting ${this.lastUrl} after ${prevStats.actionsPerformed} actions, ${prevStats.bugsFound} bugs found`);
+            this.progressReporter.printPageContextChange(this.lastUrl, llmPageContext.url, 'exit');
           }
-          
+
           // Start fresh context for new page
           this.pageContext.startNewPage(llmPageContext.url, llmPageContext.title);
           this.lastUrl = llmPageContext.url;
-          this.recentActions.clear();
+          this.loopDetection.resetActionHistory();
           this.stepsOnCurrentUrl = 0;
-          
-          console.log(`[PageContext] Starting fresh context for: ${llmPageContext.url}`);
+
+          this.progressReporter.printPageContextChange(null, llmPageContext.url, 'start');
         } else {
           this.stepsOnCurrentUrl++;
         }
 
         // Exit criteria check - should we move to next page?
         if (exitCriteria.shouldExit && this.stepsOnCurrentUrl > 2) {
-          console.log(`[ExitCriteria] ${exitCriteria.reason} - considering navigation`);
-          
+          this.progressReporter.printExitCriteria(exitCriteria.reason);
+
           // Get an unvisited URL from the queue
           const unvisitedUrls = this.urlDiscovery.getUnvisitedURLs();
           if (unvisitedUrls.length > 0) {
             // Prioritize by category: auth > product > cart > info > other
             const priorityOrder = ['auth', 'product', 'cart', 'user', 'info', 'other'];
             let targetUrl = unvisitedUrls[0];
-            
+
             for (const category of priorityOrder) {
               const found = unvisitedUrls.find(u => u.category === category);
               if (found) {
@@ -558,7 +564,9 @@ export class ExplorationService {
               }
             }
 
-            console.log(`[ExitCriteria] Moving to: ${targetUrl.normalizedUrl} (${targetUrl.category})`);
+            loggers.exitCriteria.info(`Moving to: ${targetUrl.normalizedUrl}`, {
+              category: targetUrl.category,
+            });
             decision = {
               action: 'navigate',
               value: targetUrl.normalizedUrl,
@@ -571,7 +579,7 @@ export class ExplorationService {
         // Validate navigate action - prevent empty/invalid URLs
         if (decision.action === 'navigate') {
           if (!decision.value || decision.value.trim() === '') {
-            console.log('[Validation] Invalid navigate action with empty URL, requesting alternative');
+            this.progressReporter.printNavigationValidation('', false, 'empty URL');
             const retryResponse = await this.llm.decideNextAction({
               pageContext: llmPageContext,
               history: session.getHistoryForLLM(),
@@ -589,13 +597,17 @@ export class ExplorationService {
 
           if (urlTools.has(decision.toolName)) {
             // Tool already used on this URL - force a different action
-            console.log(`[ToolLoop] Tool '${decision.toolName}' already used on ${currentUrl}, requesting alternative action`);
+            this.progressReporter.printLoopDetected('tool', decision.toolName, 1);
 
             // Get unvisited URLs to suggest navigation
             const unvisitedUrls = this.urlDiscovery.getUnvisitedURLs();
-            const navigationSuggestion = unvisitedUrls.length > 0
-              ? `\n\nSuggested next URLs to explore:\n${unvisitedUrls.slice(0, 5).map(u => `- ${u.normalizedUrl} (${u.linkText})`).join('\n')}`
-              : '';
+            const navigationSuggestion =
+              unvisitedUrls.length > 0
+                ? `\n\nSuggested next URLs to explore:\n${unvisitedUrls
+                    .slice(0, 5)
+                    .map(u => `- ${u.normalizedUrl} (${u.linkText})`)
+                    .join('\n')}`
+                : '';
 
             // Request a new decision with explicit instruction to not use tools
             const retryResponse = await this.llm.decideNextAction({
@@ -612,13 +624,16 @@ export class ExplorationService {
           }
         }
 
-        // Action loop detection: prevent repetitive actions
-        const actionSignature = this.getActionSignature(decision);
-        const actionCount = this.recentActions.get(actionSignature) || 0;
-        const maxRepetitions = this.config.actionLoopMaxRepetitions ?? 2;
+        // Action loop detection: prevent repetitive actions using LoopDetectionService
+        this.loopDetection.recordAction(decision);
+        const loopResult = this.loopDetection.detectLoop(decision);
 
-        if (actionCount >= maxRepetitions) {
-          console.log(`[ActionLoop] Action '${actionSignature}' repeated ${actionCount} times, requesting alternative`);
+        if (loopResult.isLoop) {
+          this.progressReporter.printLoopDetected(
+            loopResult.type || 'action',
+            loopResult.pattern || 'unknown',
+            loopResult.count || 0
+          );
 
           const retryResponse = await this.llm.decideNextAction({
             pageContext: llmPageContext,
@@ -627,10 +642,7 @@ export class ExplorationService {
             objective: `${sessionConfig.objective}\n\nIMPORTANT: You've tried the same action multiple times. Please choose a DIFFERENT action or navigate to a new page.`,
           });
           decision = retryResponse.decision;
-          this.recentActions.clear(); // Clear to avoid infinite loops
-        } else {
-          // Track this action
-          this.recentActions.set(actionSignature, actionCount + 1);
+          this.loopDetection.resetActionHistory(); // Clear to avoid infinite loops
         }
 
         // Check if checkpoint is needed
@@ -641,10 +653,14 @@ export class ExplorationService {
           // Auto-save session at checkpoint
           if (this.sessionRepository) {
             await this.sessionRepository.save(session);
-            console.log(`[Session] Auto-saved at checkpoint (reason: ${checkpointReason})`);
+            this.progressReporter.printSessionSaved(session.id, 'checkpoint');
           }
 
-          const guidance = await this.humanCallback.onCheckpoint(session, checkpointReason, decision);
+          const guidance = await this.humanCallback.onCheckpoint(
+            session,
+            checkpointReason,
+            decision
+          );
           await session.applyGuidance(guidance);
 
           if (guidance.action === 'stop') {
@@ -657,22 +673,24 @@ export class ExplorationService {
         const stepStartTime = Date.now();
         const stepResult = await this.executeStep(session, decision, llmPageContext);
         const stepDuration = Date.now() - stepStartTime;
-        
+
         // Record action in page context
         this.pageContext.recordAction(decision, stepResult.success, stepResult.error || '');
-        
+
         // Track the action for progress summaries
         const actionDescription = this.describeAction(decision);
         recentActions.push(actionDescription);
         if (recentActions.length > 10) recentActions.shift();
-        
+
         // If navigation occurred, wait for page to load and scan for new URLs
-        if (decision.action === 'navigate' || 
-            decision.action === 'click' ||
-            stepResult.resultingUrl !== llmPageContext.url) {
+        if (
+          decision.action === 'navigate' ||
+          decision.action === 'click' ||
+          stepResult.resultingUrl !== llmPageContext.url
+        ) {
           await this.wait(this.config.navigationWaitTime);
           this.visitedPages.add(stepResult.resultingUrl);
-          
+
           // Scan new page for URLs
           await this.scanPageForUrls(stepResult.resultingUrl);
         }
@@ -704,41 +722,38 @@ export class ExplorationService {
             this.pageContext.recordBugFound();
           }
         }
-        
+
         // Check for observed issues in the decision and create findings
         if (decision.observedIssues && decision.observedIssues.length > 0) {
-          for (const issue of decision.observedIssues) {
-            // Skip false positives (non-bugs)
-            if (this.isFalsePositive(issue)) {
-              continue;
-            }
-            
+          // Process issues through FindingProcessor - get only valid (non-false-positive) issues
+          const validIssues = this.findingProcessor.getValidIssues(decision.observedIssues);
+
+          for (const processedIssue of validIssues) {
             // Check for duplicates using bug deduplication
-            const duplicateId = this.bugDeduplication.isDuplicate(issue, llmPageContext.url);
+            const duplicateId = this.bugDeduplication.isDuplicate(
+              processedIssue.issue,
+              llmPageContext.url
+            );
             if (duplicateId) {
               // Skip duplicate
               continue;
             }
-            
-            // Determine severity based on issue content
-            const severity = this.classifyIssueSeverity(issue);
-            const findingType = this.classifyIssueType(issue);
-            
+
             // Get steps to reproduce from page context
             const stepsToReproduce = this.pageContext.getStepsToReproduce();
-            
+
             // Create description with steps to reproduce
-            const fullDescription = `${issue}\n\n**Steps to Reproduce:**\n${stepsToReproduce.join('\n')}`;
-            
+            const fullDescription = `${processedIssue.issue}\n\n**Steps to Reproduce:**\n${stepsToReproduce.join('\n')}`;
+
             const finding = Finding.create({
               sessionId: session.id,
               stepNumber: session.currentStep,
-              type: findingType,
-              title: `${this.getIssueTitlePrefix(findingType)}: ${issue.substring(0, 50)}`,
+              type: processedIssue.type,
+              title: `${this.findingProcessor.getIssueTitlePrefix(processedIssue.type)}: ${processedIssue.issue.substring(0, 50)}`,
               description: fullDescription,
               pageUrl: llmPageContext.url,
               pageTitle: llmPageContext.title,
-              severity,
+              severity: processedIssue.severity,
               metadata: {
                 stepsToReproduce,
                 pageActionsCount: this.pageContext.getActionCount(),
@@ -746,22 +761,22 @@ export class ExplorationService {
             });
             await this.findingsRepository.save(finding);
             session.addFinding(finding.id);
-            
+
             // Register with deduplication service
             this.bugDeduplication.registerBug(
               finding.id,
               finding.title,
-              issue,
-              severity,
+              processedIssue.issue,
+              processedIssue.severity,
               llmPageContext.url,
               stepsToReproduce
             );
-            
+
             // Track bug found on page
             this.pageContext.recordBugFound();
-            
-            const severityEmoji = severity === 'critical' ? '🔴' : severity === 'high' ? '🟠' : severity === 'medium' ? '🟡' : '🟢';
-            console.log(`${severityEmoji} [${severity.toUpperCase()}] ${issue}`);
+
+            // Use ProgressReporter for finding output
+            this.progressReporter.printFinding(processedIssue.severity, processedIssue.issue);
           }
         }
       }
@@ -770,7 +785,7 @@ export class ExplorationService {
       const findings = await this.findingsRepository.findBySessionId(session.id);
       const summary = await this.llm.generateSummary(
         session.getHistoryForLLM(),
-        findings.map((f) => f.summarize())
+        findings.map(f => f.summarize())
       );
 
       // End session
@@ -779,7 +794,7 @@ export class ExplorationService {
       // Final auto-save of completed session
       if (this.sessionRepository) {
         await this.sessionRepository.save(session);
-        console.log(`[Session] Final save completed (session: ${session.id})`);
+        this.progressReporter.printSessionSaved(session.id, 'final');
       }
 
       return {
@@ -800,7 +815,7 @@ export class ExplorationService {
       // Save session state even on error
       if (this.sessionRepository) {
         await this.sessionRepository.save(session);
-        console.log(`[Session] Saved session after error (session: ${session.id})`);
+        this.progressReporter.printSessionSaved(session.id, 'error');
       }
 
       // Generate summary even on error
@@ -831,7 +846,7 @@ export class ExplorationService {
       url: pageState.url,
       title: pageState.title,
       visibleText: pageState.visibleText?.substring(0, 5000) || '',
-      elements: pageState.interactiveElements.slice(0, 50).map((el) => ({
+      elements: pageState.interactiveElements.slice(0, 50).map(el => ({
         selector: el.selector,
         type: el.type,
         text: el.text || '',
@@ -874,7 +889,7 @@ export class ExplorationService {
    * Get tool definitions for LLM.
    */
   private getToolDefinitions(): ToolDefinition[] {
-    return Array.from(this.tools.values()).map((tool) => tool.getDefinition());
+    return Array.from(this.tools.values()).map(tool => tool.getDefinition());
   }
 
   /**
@@ -965,7 +980,7 @@ export class ExplorationService {
       // Check for new console errors after action
       const newPageState = await this.browser.extractPageState();
       const newConsoleErrors = newPageState.consoleErrors.filter(
-        (err) => !pageContext.consoleErrors.includes(err)
+        err => !pageContext.consoleErrors.includes(err)
       );
 
       if (newConsoleErrors.length > 0) {
@@ -1023,9 +1038,12 @@ export class ExplorationService {
     if (result.success && result.data) {
       // Handle broken image detector results
       if (toolName === 'broken_image_detector') {
-        const data = result.data as { brokenImages: Array<{ src: string; reason: string }>; totalImages: number };
+        const data = result.data as {
+          brokenImages: Array<{ src: string; reason: string }>;
+          totalImages: number;
+        };
         if (data.brokenImages && data.brokenImages.length > 0) {
-          const details = data.brokenImages.map((img) => `${img.src}: ${img.reason}`).join('\n');
+          const details = data.brokenImages.map(img => `${img.src}: ${img.reason}`).join('\n');
           const finding = Finding.fromBrokenImages(
             session.id,
             session.currentStep + 1,
@@ -1046,248 +1064,6 @@ export class ExplorationService {
   }
 
   /**
-   * Check if an observed issue is a false positive (not a real bug).
-   * Filters out:
-   * - "No bugs found" type messages
-   * - Navigation descriptions
-   * - Status updates without actual issues
-   * - Contradictory or vague statements
-   */
-  private isFalsePositive(issue: string): boolean {
-    const lowerIssue = issue.toLowerCase();
-    
-    // Filter out "no bugs/issues" messages - comprehensive patterns
-    const noBugPatterns = [
-      'no immediate bugs',
-      'no bugs found',
-      'no issues found',
-      'no errors found',
-      'no issues detected',
-      'no bugs detected',
-      'no issues on',
-      'no bugs on',
-      'no visible issues',
-      'no apparent bugs',
-      'no bugs observed',
-      'no issues observed',
-      'page looks good',
-      'everything looks fine',
-      'everything looks good',
-      'looks correct',
-      'appears correct',
-      'working correctly',
-      'works as expected',
-      'functioning properly',
-      'not yet tested',
-      'none are visible',
-      'but none are',
-      'if any',
-    ];
-    
-    for (const pattern of noBugPatterns) {
-      if (lowerIssue.includes(pattern)) {
-        return true;
-      }
-    }
-    
-    // Filter out navigation/status descriptions (not bugs)
-    const navigationPatterns = [
-      'navigating to',
-      'navigating away',
-      'navigate to',
-      'navigation to',
-      'page is focused',
-      'currently on',
-      'currently focused',
-      'now on',
-      'successfully loaded',
-      'loaded successfully',
-      'moving to',
-      'going to',
-      'proceeding to',
-    ];
-    
-    for (const pattern of navigationPatterns) {
-      if (lowerIssue.includes(pattern)) {
-        return true;
-      }
-    }
-    
-    // Filter out speculative statements (not confirmed bugs)
-    const speculativePatterns = [
-      'actual outcome requires',
-      'requires submission',
-      'requires server',
-      'server response unknown',
-      'outcome requires',
-      'may affect',
-      'might affect',
-      'could affect',
-      'may impact',
-      'might impact',
-      'could impact',
-      'potential issue if',
-      'would need to',
-      'needs further',
-      'requires further',
-    ];
-    
-    for (const pattern of speculativePatterns) {
-      if (lowerIssue.includes(pattern)) {
-        return true;
-      }
-    }
-    
-    // Filter out expected behavior descriptions
-    const expectedBehaviorPatterns = [
-      'accepts text',
-      'accepts input',
-      'accepts special characters',
-      'field works',
-      'input works',
-      'button works',
-      'link works',
-      'as expected',
-    ];
-    
-    for (const pattern of expectedBehaviorPatterns) {
-      if (lowerIssue.includes(pattern)) {
-        return true;
-      }
-    }
-    
-    // Filter out vague or contradictory statements
-    // e.g., "No issues on current page; the page contains a broken image"
-    if (lowerIssue.includes('no issues') || lowerIssue.includes('no bugs')) {
-      return true;
-    }
-    
-    // Must have some actionable content - reject very short or vague issues
-    const words = issue.split(/\s+/).filter(w => w.length > 2);
-    if (words.length < 3) {
-      return true;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Classify severity based on issue content.
-   * 
-   * SEVERITY GUIDELINES:
-   * - CRITICAL: Security vulnerabilities, data loss, crashes
-   * - HIGH: Functional bugs that break core features, undefined values in UI
-   * - MEDIUM: Console errors, broken images, validation issues
-   * - LOW: Typos, minor text issues, cosmetic problems
-   */
-  private classifyIssueSeverity(issue: string): 'critical' | 'high' | 'medium' | 'low' {
-    const lowerIssue = issue.toLowerCase();
-    
-    // LOW: Typos and text issues (check first to avoid false HIGH classification)
-    if (lowerIssue.includes('typo') ||
-        lowerIssue.includes('misspell') ||
-        lowerIssue.includes('spelling') ||
-        lowerIssue.includes('contakt') ||  // Specific known typo
-        (lowerIssue.includes('should be') && !lowerIssue.includes('error'))) {
-      return 'low';
-    }
-    
-    // CRITICAL: Security issues, data loss, crash
-    if (lowerIssue.includes('security') ||
-        lowerIssue.includes('injection') ||
-        lowerIssue.includes('xss') ||
-        lowerIssue.includes('unauthorized') ||
-        lowerIssue.includes('crash') ||
-        lowerIssue.includes('data loss') ||
-        lowerIssue.includes('password exposed') ||
-        lowerIssue.includes('credential')) {
-      return 'critical';
-    }
-    
-    // HIGH: Functional issues that break features
-    if (lowerIssue.includes('undefined') ||
-        lowerIssue.includes('null') ||
-        lowerIssue.includes('[object object]') ||
-        lowerIssue.includes('nan') ||
-        lowerIssue.includes("doesn't work") ||
-        lowerIssue.includes('not working') ||
-        lowerIssue.includes('fails to') ||
-        lowerIssue.includes('cannot') ||
-        lowerIssue.includes('unable to') ||
-        lowerIssue.includes('500') ||
-        lowerIssue.includes('exception')) {
-      return 'high';
-    }
-    
-    // MEDIUM: Console errors, broken images, validation issues, 404s
-    if (lowerIssue.includes('error') ||
-        lowerIssue.includes('console') ||
-        lowerIssue.includes('broken image') ||
-        lowerIssue.includes('image not') ||
-        lowerIssue.includes('404') ||
-        lowerIssue.includes('validation') ||
-        lowerIssue.includes('missing') ||
-        lowerIssue.includes('incorrect')) {
-      return 'medium';
-    }
-    
-    // Low: Minor issues, suggestions
-    return 'low';
-  }
-
-  /**
-   * Classify issue type based on content.
-   */
-  private classifyIssueType(issue: string): FindingType {
-    const lowerIssue = issue.toLowerCase();
-    
-    if (lowerIssue.includes('typo') || lowerIssue.includes('misspell') || lowerIssue.includes('spelling')) {
-      return 'text_issue';
-    }
-    if (lowerIssue.includes('console') || lowerIssue.includes('javascript error')) {
-      return 'console_error';
-    }
-    if (lowerIssue.includes('image') || lowerIssue.includes('img')) {
-      return 'broken_image';
-    }
-    if (lowerIssue.includes('security') || lowerIssue.includes('xss') || lowerIssue.includes('injection')) {
-      return 'security';
-    }
-    if (lowerIssue.includes('usability') || lowerIssue.includes('ux') || lowerIssue.includes('confusing')) {
-      return 'usability';
-    }
-    if (lowerIssue.includes('layout') || lowerIssue.includes('display') || lowerIssue.includes('ui')) {
-      return 'ui_issue';
-    }
-    if (lowerIssue.includes('network') || lowerIssue.includes('404') || lowerIssue.includes('500')) {
-      return 'network_error';
-    }
-    
-    return 'observed_bug';
-  }
-
-  /**
-   * Get title prefix based on finding type.
-   */
-  private getIssueTitlePrefix(type: FindingType): string {
-    const prefixes: Record<FindingType, string> = {
-      'broken_image': 'Broken Image',
-      'console_error': 'Console Error',
-      'network_error': 'Network Error',
-      'accessibility': 'Accessibility Issue',
-      'usability': 'Usability Issue',
-      'functional': 'Functional Bug',
-      'performance': 'Performance Issue',
-      'security': 'Security Issue',
-      'observed_bug': 'Bug Found',
-      'text_issue': 'Text Issue',
-      'ui_issue': 'UI Issue',
-      'other': 'Issue',
-    };
-    return prefixes[type] || 'Issue';
-  }
-
-  /**
    * Execute an async operation with retry logic.
    */
   private async executeWithRetry<T>(
@@ -1297,21 +1073,21 @@ export class ExplorationService {
   ): Promise<T> {
     let lastError: Error | undefined;
     let delay = initialDelay;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         if (attempt < maxRetries) {
-          console.log(`⚠️ Attempt ${attempt} failed, retrying in ${delay}ms...`);
+          this.progressReporter.printRetry(attempt, delay);
           await this.wait(delay);
           delay *= 2; // Exponential backoff
         }
       }
     }
-    
+
     throw lastError;
   }
 
@@ -1329,23 +1105,22 @@ export class ExplorationService {
     try {
       // Use browser's evaluate method directly through BrowserPort interface
       const newUrls = await this.urlDiscovery.scanPage(this.browser, currentUrl);
-      
+
       if (newUrls.length > 0) {
         const unvisited = this.urlDiscovery.getUnvisitedURLs();
-        console.log(`[URLDiscovery] Found ${newUrls.length} new URLs (${unvisited.length} total in queue)`);
-        
-        // Log first few new URLs
-        for (const url of newUrls.slice(0, 3)) {
-          const path = new URL(url.normalizedUrl).pathname;
-          console.log(`   + [${url.category}] ${path} - "${url.linkText.substring(0, 40)}"`);
-        }
-        if (newUrls.length > 3) {
-          console.log(`   ... and ${newUrls.length - 3} more`);
-        }
+        // Use ProgressReporter for URL discovery results
+        this.progressReporter.printUrlDiscoveryResults(
+          newUrls.slice(0, 3).map(u => ({
+            category: u.category,
+            normalizedUrl: u.normalizedUrl,
+            linkText: u.linkText,
+          })),
+          unvisited.length
+        );
       }
     } catch (error) {
       // URL discovery is non-critical, don't fail exploration
-      console.log(`[URLDiscovery] Scan error (non-critical): ${error instanceof Error ? error.message : String(error)}`);
+      this.progressReporter.printUrlDiscoveryError(error);
     }
   }
 
@@ -1367,32 +1142,5 @@ export class ExplorationService {
    */
   getNavigationPlanner(): NavigationPlanner {
     return this.navigationPlanner;
-  }
-
-  /**
-   * Create a unique signature for an action to detect loops.
-   * Format: action:selector:value (normalized)
-   */
-  private getActionSignature(decision: ActionDecision): string {
-    const parts: string[] = [decision.action];
-
-    if (decision.selector) {
-      parts.push(decision.selector);
-    }
-
-    if (decision.value) {
-      // Normalize value to catch similar inputs
-      const normalizedValue = decision.value
-        .toLowerCase()
-        .replace(/['"]/g, '')
-        .substring(0, 50); // Limit length for comparison
-      parts.push(normalizedValue);
-    }
-
-    if (decision.toolName) {
-      parts.push(decision.toolName);
-    }
-
-    return parts.join(':');
   }
 }

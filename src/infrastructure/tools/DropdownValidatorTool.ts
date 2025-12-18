@@ -17,7 +17,13 @@ export interface DropdownValidatorParams {
 export interface DropdownIssue {
   selector: string;
   label: string;
-  type: 'undefined_option' | 'null_option' | 'empty_option' | 'invalid_value' | 'nan_option' | 'object_option';
+  type:
+    | 'undefined_option'
+    | 'null_option'
+    | 'empty_option'
+    | 'invalid_value'
+    | 'nan_option'
+    | 'object_option';
   severity: 'critical' | 'high' | 'medium' | 'low';
   problematicOptions: Array<{
     text: string;
@@ -187,12 +193,12 @@ export class DropdownValidatorTool extends BaseTool<
   /**
    * Validate a single select element.
    */
-  private validateSelect(
-    select: RawSelectData,
-    params: DropdownValidatorParams
-  ): DropdownIssue[] {
+  private validateSelect(select: RawSelectData, params: DropdownValidatorParams): DropdownIssue[] {
     const issues: DropdownIssue[] = [];
-    const problematicOptionsByType = new Map<string, Array<{ text: string; value: string; index: number }>>();
+    const problematicOptionsByType = new Map<
+      string,
+      Array<{ text: string; value: string; index: number }>
+    >();
 
     for (const option of select.options) {
       // Check option text
@@ -239,7 +245,13 @@ export class DropdownValidatorTool extends BaseTool<
    * Determine severity based on issue type.
    */
   private determineSeverity(
-    type: 'undefined_option' | 'null_option' | 'empty_option' | 'invalid_value' | 'nan_option' | 'object_option'
+    type:
+      | 'undefined_option'
+      | 'null_option'
+      | 'empty_option'
+      | 'invalid_value'
+      | 'nan_option'
+      | 'object_option'
   ): 'critical' | 'high' | 'medium' | 'low' {
     switch (type) {
       case 'object_option':
@@ -307,7 +319,9 @@ export class DropdownValidatorTool extends BaseTool<
       lines.push('\nCritical/High severity dropdowns:');
       for (const issue of criticalIssues.slice(0, 3)) {
         lines.push(`  - "${issue.label}" (${issue.selector})`);
-        lines.push(`    Problem: ${issue.problematicOptions.length} options with ${issue.type.replace('_', ' ')}`);
+        lines.push(
+          `    Problem: ${issue.problematicOptions.length} options with ${issue.type.replace('_', ' ')}`
+        );
       }
     }
 

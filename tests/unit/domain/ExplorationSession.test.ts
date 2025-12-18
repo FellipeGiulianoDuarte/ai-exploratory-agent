@@ -1,4 +1,7 @@
-import { ExplorationSession, ExplorationSessionConfig } from '../../../src/domain/exploration/ExplorationSession';
+import {
+  ExplorationSession,
+  ExplorationSessionConfig,
+} from '../../../src/domain/exploration/ExplorationSession';
 import { ActionDecision } from '../../../src/application/ports/LLMPort';
 
 describe('ExplorationSession', () => {
@@ -10,7 +13,9 @@ describe('ExplorationSession', () => {
     ...overrides,
   });
 
-  const createConfig = (overrides: Partial<ExplorationSessionConfig> = {}): ExplorationSessionConfig => ({
+  const createConfig = (
+    overrides: Partial<ExplorationSessionConfig> = {}
+  ): ExplorationSessionConfig => ({
     targetUrl: 'https://example.com',
     maxSteps: 100,
     checkpointInterval: 10,
@@ -30,10 +35,12 @@ describe('ExplorationSession', () => {
     });
 
     it('should create a session with custom config', () => {
-      const session = ExplorationSession.create(createConfig({
-        checkpointInterval: 20,
-        minConfidenceThreshold: 0.6,
-      }));
+      const session = ExplorationSession.create(
+        createConfig({
+          checkpointInterval: 20,
+          minConfidenceThreshold: 0.6,
+        })
+      );
 
       expect(session.config.checkpointInterval).toBe(20);
       expect(session.config.minConfidenceThreshold).toBe(0.6);
@@ -79,12 +86,7 @@ describe('ExplorationSession', () => {
       const session = ExplorationSession.create(createConfig());
       await session.start();
 
-      await session.recordStep(
-        createMockAction(),
-        true,
-        'https://example.com/page1',
-        1000
-      );
+      await session.recordStep(createMockAction(), true, 'https://example.com/page1', 1000);
 
       const step2 = await session.recordStep(
         createMockAction({ action: 'fill', value: 'test' }),
@@ -192,7 +194,7 @@ describe('ExplorationSession', () => {
       const session = ExplorationSession.create(createConfig());
       await session.start();
       await session.triggerCheckpoint('step_count');
-      
+
       session.resume();
 
       expect(session.status).toBe('running');
@@ -275,7 +277,13 @@ describe('ExplorationSession', () => {
       await session.start();
 
       await session.recordStep(createMockAction(), true, 'https://example.com/page1', 1000);
-      await session.recordStep(createMockAction(), false, 'https://example.com/page1', 1000, 'Error');
+      await session.recordStep(
+        createMockAction(),
+        false,
+        'https://example.com/page1',
+        1000,
+        'Error'
+      );
       await session.recordStep(createMockAction(), true, 'https://example.com/page2', 1000);
 
       const stats = session.getStats();

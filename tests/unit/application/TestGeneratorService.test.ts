@@ -24,7 +24,9 @@ describe('TestGeneratorService', () => {
     }
   });
 
-  const createFinding = (overrides: Partial<Parameters<typeof Finding.create>[0]> = {}): Finding => {
+  const createFinding = (
+    overrides: Partial<Parameters<typeof Finding.create>[0]> = {}
+  ): Finding => {
     return Finding.create({
       sessionId: 'test-session',
       type: 'observed_bug',
@@ -48,8 +50,11 @@ describe('TestGeneratorService', () => {
 
       expect(result.filePath).toBeDefined();
       expect(result.testCount).toBeGreaterThan(0);
-      
-      const exists = await fs.access(result.filePath).then(() => true).catch(() => false);
+
+      const exists = await fs
+        .access(result.filePath)
+        .then(() => true)
+        .catch(() => false);
       expect(exists).toBe(true);
     });
 
@@ -64,9 +69,9 @@ describe('TestGeneratorService', () => {
 
     it('should not contain "undefined" as literal test text', async () => {
       const findings = [
-        createFinding({ 
+        createFinding({
           title: 'Found undefined in navigation',
-          description: 'UNDEFINED text appears in navigation menu'
+          description: 'UNDEFINED text appears in navigation menu',
         }),
       ];
 
@@ -140,7 +145,7 @@ describe('TestGeneratorService', () => {
 
     it('should include finding ID in test comments', async () => {
       const finding = createFinding({ title: 'Specific bug' });
-      
+
       const result = await service.generateTests([finding], 'session-id-test');
       const content = await fs.readFile(result.filePath, 'utf-8');
 
@@ -148,9 +153,7 @@ describe('TestGeneratorService', () => {
     });
 
     it('should generate valid TypeScript syntax', async () => {
-      const findings = [
-        createFinding({ title: "Bug with 'quotes' and \"double quotes\"" }),
-      ];
+      const findings = [createFinding({ title: 'Bug with \'quotes\' and "double quotes"' })];
 
       const result = await service.generateTests(findings, 'session-syntax');
       const content = await fs.readFile(result.filePath, 'utf-8');
@@ -186,9 +189,7 @@ describe('TestGeneratorService', () => {
     });
 
     it('should include page navigation in each test', async () => {
-      const findings = [
-        createFinding({ pageUrl: 'https://example.com/#/contact' }),
-      ];
+      const findings = [createFinding({ pageUrl: 'https://example.com/#/contact' })];
 
       const result = await service.generateTests(findings, 'session-nav');
       const content = await fs.readFile(result.filePath, 'utf-8');

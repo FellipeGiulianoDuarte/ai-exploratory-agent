@@ -73,10 +73,7 @@ export class TestGeneratorService {
   /**
    * Generate Playwright tests from findings.
    */
-  async generateTests(
-    findings: Finding[],
-    sessionId: string
-  ): Promise<TestGenerationResult> {
+  async generateTests(findings: Finding[], sessionId: string): Promise<TestGenerationResult> {
     // Ensure output directory exists
     await fs.mkdir(this.config.outputDir, { recursive: true });
 
@@ -106,7 +103,7 @@ export class TestGeneratorService {
     return {
       filePath,
       testCount: testCases.length,
-      includedFindings: testCases.map((tc) => tc.findingId),
+      includedFindings: testCases.map(tc => tc.findingId),
       excludedFindings,
     };
   }
@@ -227,8 +224,8 @@ export class TestGeneratorService {
           `// Check for typo: '${wrongWord}' should be '${correctWord}'`,
           `const pageText = await page.textContent('body');`,
           `if (pageText?.includes('${wrongWord}')) {`,
-            `  expect(pageText).not.toContain('${wrongWord}');`,
-            `}`
+          `  expect(pageText).not.toContain('${wrongWord}');`,
+          `}`
         );
       }
     }
@@ -263,7 +260,10 @@ export class TestGeneratorService {
     const description = finding.description.toLowerCase();
 
     // Check for error messages in dropdowns or text
-    if (description.includes('error') && (description.includes('dropdown') || description.includes('select'))) {
+    if (
+      description.includes('error') &&
+      (description.includes('dropdown') || description.includes('select'))
+    ) {
       const errorPatterns = [
         /Error\s*\d+:?\s*[^'".]*/gi,
         /Translation error/gi,
@@ -335,9 +335,9 @@ export class TestGeneratorService {
    * Filters out expected/whitelisted errors (401, 404, favicon, etc.)
    */
   private generateConsoleErrorAssertions(_finding: Finding): string[] {
-    const ignorePatterns = (this.config.ignoreConsoleErrors ?? []).map(
-      (pattern) => `!e.toLowerCase().includes('${pattern.toLowerCase()}')`
-    ).join(' && ');
+    const ignorePatterns = (this.config.ignoreConsoleErrors ?? [])
+      .map(pattern => `!e.toLowerCase().includes('${pattern.toLowerCase()}')`)
+      .join(' && ');
 
     return [
       `// Check for console errors (excluding expected ones like 404, 401, favicon)`,
@@ -444,7 +444,9 @@ export class TestGeneratorService {
     lines.push(``);
     lines.push(`import { test, expect } from '@playwright/test';`);
     lines.push(``);
-    lines.push(`test.describe('Bug Regression Tests - Session ${sessionId.substring(0, 8)}', () => {`);
+    lines.push(
+      `test.describe('Bug Regression Tests - Session ${sessionId.substring(0, 8)}', () => {`
+    );
     lines.push(`  test.beforeEach(async ({ page }) => {`);
     lines.push(`    // Set default timeout`);
     lines.push(`    test.setTimeout(${this.config.testTimeout});`);
@@ -518,10 +520,14 @@ export class TestGeneratorService {
 
     // Include short finding ID to ensure unique test names
     const shortId = testCase.findingId.substring(0, 8);
-    lines.push(`${indent}test('[${testCase.severity.toUpperCase()}] ${testCase.name} (${shortId})', async ({ page }) => {`);
+    lines.push(
+      `${indent}test('[${testCase.severity.toUpperCase()}] ${testCase.name} (${shortId})', async ({ page }) => {`
+    );
     lines.push(`${indent}  // Finding ID: ${testCase.findingId}`);
     lines.push(`${indent}  // Type: ${testCase.findingType}`);
-    lines.push(`${indent}  // Description: ${testCase.description.replace(/\n/g, ' ').substring(0, 100)}`);
+    lines.push(
+      `${indent}  // Description: ${testCase.description.replace(/\n/g, ' ').substring(0, 100)}`
+    );
     lines.push(`${indent}  `);
     lines.push(`${indent}  // Navigate to the page`);
     lines.push(`${indent}  await page.goto('${pageUrl}');`);

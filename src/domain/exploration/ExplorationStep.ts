@@ -1,5 +1,5 @@
 import { Entity } from '../shared/Entity';
-import { ActionDecision } from '../../application/ports/LLMPort';
+import { ActionDecision } from './ActionTypes';
 
 /**
  * Properties for an ExplorationStep.
@@ -133,13 +133,14 @@ export class ExplorationStep extends Entity<ExplorationStepProps> {
    * Get a summary of this step.
    */
   summarize(): string {
-    const actionDesc = this.props.action.action === 'tool'
-      ? `tool:${this.props.action.toolName}`
-      : this.props.action.action;
-    
+    const actionDesc =
+      this.props.action.action === 'tool'
+        ? `tool:${this.props.action.toolName}`
+        : this.props.action.action;
+
     const target = this.props.action.selector || this.props.action.value || '';
     const status = this.props.success ? '✓' : '✗';
-    
+
     return `Step ${this.props.stepNumber} [${status}]: ${actionDesc}${target ? ` on ${target}` : ''} → ${this.props.resultingUrl}`;
   }
 

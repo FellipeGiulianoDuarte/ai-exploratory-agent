@@ -1,5 +1,9 @@
 import * as readline from 'readline';
-import { ExplorationSession, CheckpointReason, HumanGuidance } from '../../domain/exploration/ExplorationSession';
+import {
+  ExplorationSession,
+  CheckpointReason,
+  HumanGuidance,
+} from '../../domain/exploration/ExplorationSession';
 import { ActionDecision } from '../../application/ports/LLMPort';
 import { HumanInteractionCallback } from '../../application/services/ExplorationService';
 import { FindingsRepository } from '../../application/ports/FindingsRepository';
@@ -43,7 +47,7 @@ function formatCheckpointReason(reason: CheckpointReason): string {
  */
 function formatAction(decision: ActionDecision): string {
   let actionStr = `${colors.cyan}${decision.action}${colors.reset}`;
-  
+
   if (decision.selector) {
     actionStr += ` on ${colors.yellow}${decision.selector}${colors.reset}`;
   }
@@ -53,7 +57,7 @@ function formatAction(decision: ActionDecision): string {
   if (decision.toolName) {
     actionStr += ` (tool: ${colors.magenta}${decision.toolName}${colors.reset})`;
   }
-  
+
   return actionStr;
 }
 
@@ -96,9 +100,9 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
    * Prompt the user for input.
    */
   private prompt(question: string): Promise<string> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const rl = this.getReadline();
-      rl.question(question, (answer) => {
+      rl.question(question, answer => {
         resolve(answer.trim());
       });
     });
@@ -116,7 +120,7 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
    */
   private displaySessionSummary(session: ExplorationSession): void {
     const stats = session.getStats();
-    
+
     console.log(`${colors.bold}📊 Exploration Summary${colors.reset}`);
     console.log(`   Steps completed: ${colors.cyan}${stats.totalSteps}${colors.reset}`);
     console.log(`   Current URL: ${colors.blue}${session.currentUrl}${colors.reset}`);
@@ -132,7 +136,7 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
     console.log(`   Action: ${formatAction(decision)}`);
     console.log(`   Confidence: ${this.formatConfidence(decision.confidence)}`);
     console.log(`   Reasoning: ${colors.dim}${decision.reasoning}${colors.reset}`);
-    
+
     if (decision.hypothesis) {
       console.log(`   Hypothesis: ${colors.dim}${decision.hypothesis}${colors.reset}`);
     }
@@ -147,13 +151,13 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
   private formatConfidence(confidence: number): string {
     const percentage = Math.round(confidence * 100);
     let color = colors.green;
-    
+
     if (confidence < 0.5) {
       color = colors.red;
     } else if (confidence < 0.7) {
       color = colors.yellow;
     }
-    
+
     return `${color}${percentage}%${colors.reset}`;
   }
 
@@ -163,15 +167,15 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
   private displayRecentHistory(session: ExplorationSession): void {
     const history = session.getHistoryForLLM();
     const recent = history.slice(-5);
-    
+
     if (recent.length === 0) {
       return;
     }
 
     console.log(`\n${colors.bold}📜 Recent Actions${colors.reset}`);
     for (const entry of recent) {
-      const status = entry.success 
-        ? `${colors.green}✓${colors.reset}` 
+      const status = entry.success
+        ? `${colors.green}✓${colors.reset}`
         : `${colors.red}✗${colors.reset}`;
       console.log(`   ${status} Step ${entry.step}: ${formatAction(entry.action)}`);
     }
@@ -186,13 +190,13 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
     proposedAction?: ActionDecision
   ): Promise<HumanGuidance> {
     this.separator();
-    
+
     console.log(`${colors.bold}${colors.yellow}⚡ CHECKPOINT${colors.reset}`);
     console.log(`   Reason: ${formatCheckpointReason(reason)}`);
-    
+
     this.displaySessionSummary(session);
     this.displayRecentHistory(session);
-    
+
     if (proposedAction) {
       this.displayProposedAction(proposedAction);
     }
@@ -229,7 +233,9 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
           const stopReason = await this.prompt(
             `${colors.cyan}Reason for stopping (optional): ${colors.reset}`
           );
-          console.log(`${colors.dim}Stopping: ${stopReason || 'User stopped exploration'}${colors.reset}`);
+          console.log(
+            `${colors.dim}Stopping: ${stopReason || 'User stopped exploration'}${colors.reset}`
+          );
           return { action: 'stop' };
 
         case 'd':
@@ -248,9 +254,9 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
    */
   private async displayDetailedFindings(session: ExplorationSession): Promise<void> {
     const stats = session.getStats();
-    
+
     console.log(`\n${colors.bold}🔍 Detailed Findings${colors.reset}`);
-    
+
     if (stats.totalFindings === 0) {
       console.log(`   ${colors.dim}No findings recorded yet.${colors.reset}`);
       return;
@@ -259,7 +265,7 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
     // If we have a findings repository, fetch and display full finding details
     if (this.findingsRepository) {
       const findings = await this.findingsRepository.findBySessionId(session.id);
-      
+
       if (findings.length === 0) {
         console.log(`   ${colors.dim}No findings recorded yet.${colors.reset}`);
         return;
@@ -272,7 +278,7 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
       // Fallback: display finding IDs from session history
       const history = session.getHistoryForLLM();
       const allFindings = history.flatMap(h => h.findings || []);
-      
+
       for (const finding of allFindings) {
         console.log(`   • ${finding}`);
       }
@@ -329,12 +335,22 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
   displayFinding(_type: string, severity: string, title: string): void {
     let severityColor = colors.dim;
     switch (severity) {
-      case 'critical': severityColor = colors.red; break;
-      case 'high': severityColor = colors.yellow; break;
-      case 'medium': severityColor = colors.cyan; break;
-      case 'low': severityColor = colors.dim; break;
+      case 'critical':
+        severityColor = colors.red;
+        break;
+      case 'high':
+        severityColor = colors.yellow;
+        break;
+      case 'medium':
+        severityColor = colors.cyan;
+        break;
+      case 'low':
+        severityColor = colors.dim;
+        break;
     }
-    
-    console.log(`   ${colors.yellow}🔎 Found:${colors.reset} ${severityColor}[${severity}]${colors.reset} ${title}`);
+
+    console.log(
+      `   ${colors.yellow}🔎 Found:${colors.reset} ${severityColor}[${severity}]${colors.reset} ${title}`
+    );
   }
 }

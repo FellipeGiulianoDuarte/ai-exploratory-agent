@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getPromptConfig } from '../config/prompt-config';
+import { loggers } from '../../logging';
 
 export type PromptTaskType = 'decision' | 'analysis' | 'summary' | 'availability';
 
@@ -121,7 +122,7 @@ export class PromptLogger {
       fs.writeFileSync(readableFilepath, readableContent, 'utf-8');
     } catch (error) {
       // Don't throw - logging failures shouldn't break the application
-      console.error('Failed to write prompt log:', error);
+      loggers.llm.error(`Failed to write prompt log: ${error}`);
     }
   }
 

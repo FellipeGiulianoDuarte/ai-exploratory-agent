@@ -1,9 +1,10 @@
-import { LLMPageContext, ActionDecision } from '../../application/ports/LLMPort';
+import { PageContext as LLMPageContext } from '../exploration/PageContext';
+import { ActionDecision } from '../exploration/ActionTypes';
 import { TestingPersona, PersonaSuggestion } from './TestingPersona';
 
 /**
  * The Edge Case Agent - Boundary testing and edge cases
- * 
+ *
  * Focuses on testing boundary conditions, edge cases, off-by-one errors,
  * and unusual but valid inputs.
  */
@@ -70,20 +71,22 @@ export class EdgeCasePersona implements TestingPersona {
     const suggestions: PersonaSuggestion[] = [];
 
     // Find numeric inputs
-    const numericInputs = context.elements.filter(el =>
-      el.type === 'input' && (
-        el.selector.includes('number') ||
-        el.selector.includes('quantity') ||
-        el.selector.includes('amount') ||
-        el.selector.includes('price') ||
-        el.selector.includes('age') ||
-        el.selector.includes('count') ||
-        el.selector.includes('size') ||
-        el.selector.includes('qty')
-      )
+    const numericInputs = context.elements.filter(
+      el =>
+        el.type === 'input' &&
+        (el.selector.includes('number') ||
+          el.selector.includes('quantity') ||
+          el.selector.includes('amount') ||
+          el.selector.includes('price') ||
+          el.selector.includes('age') ||
+          el.selector.includes('count') ||
+          el.selector.includes('size') ||
+          el.selector.includes('qty'))
     );
 
     for (const input of numericInputs) {
+      const elementId = this.getElementIdentifier(input);
+
       // Test key boundary values
       const keyBoundaries = [
         this.boundaryValues.numbers[0], // 0
@@ -99,7 +102,7 @@ export class EdgeCasePersona implements TestingPersona {
             selector: input.selector,
             value: boundary.value,
           },
-          reasoning: `Edge case: ${boundary.reason}`,
+          reasoning: `${boundary.reason} in ${elementId}`,
           riskLevel: 'safe',
           expectedFindingType: 'boundary_error',
           confidence: 0.7,
@@ -108,11 +111,11 @@ export class EdgeCasePersona implements TestingPersona {
     }
 
     // Find text inputs
-    const textInputs = context.elements.filter(el =>
-      el.type === 'input' || el.type === 'textarea'
-    );
+    const textInputs = context.elements.filter(el => el.type === 'input' || el.type === 'textarea');
 
     for (const input of textInputs) {
+      const elementId = this.getElementIdentifier(input);
+
       // Empty and whitespace tests
       suggestions.push({
         action: {
@@ -120,7 +123,7 @@ export class EdgeCasePersona implements TestingPersona {
           selector: input.selector,
           value: '',
         },
-        reasoning: 'Edge case: Empty input',
+        reasoning: `Empty input in ${elementId}`,
         riskLevel: 'safe',
         expectedFindingType: 'validation_error',
         confidence: 0.8,
@@ -132,7 +135,7 @@ export class EdgeCasePersona implements TestingPersona {
           selector: input.selector,
           value: '   ',
         },
-        reasoning: 'Edge case: Whitespace-only input',
+        reasoning: `Whitespace-only in ${elementId}`,
         riskLevel: 'safe',
         expectedFindingType: 'validation_error',
         confidence: 0.75,
@@ -140,13 +143,15 @@ export class EdgeCasePersona implements TestingPersona {
     }
 
     // Find date inputs
-    const dateInputs = context.elements.filter(el =>
-      el.selector.includes('date') ||
-      el.selector.includes('birthday') ||
-      el.selector.includes('dob')
+    const dateInputs = context.elements.filter(
+      el =>
+        el.selector.includes('date') ||
+        el.selector.includes('birthday') ||
+        el.selector.includes('dob')
     );
 
     for (const input of dateInputs) {
+      const elementId = this.getElementIdentifier(input);
       const keyDates = [
         this.boundaryValues.dates[0], // Unix epoch
         this.boundaryValues.dates[7], // Leap year
@@ -160,7 +165,7 @@ export class EdgeCasePersona implements TestingPersona {
             selector: input.selector,
             value: date.value,
           },
-          reasoning: `Edge case: ${date.reason}`,
+          reasoning: `${date.reason} in ${elementId}`,
           riskLevel: 'safe',
           expectedFindingType: 'date_handling_error',
           confidence: 0.7,
@@ -169,12 +174,12 @@ export class EdgeCasePersona implements TestingPersona {
     }
 
     // Find email inputs
-    const emailInputs = context.elements.filter(el =>
-      el.selector.includes('email') ||
-      el.type === 'input' && el.selector.includes('mail')
+    const emailInputs = context.elements.filter(
+      el => el.selector.includes('email') || (el.type === 'input' && el.selector.includes('mail'))
     );
 
     for (const input of emailInputs) {
+      const elementId = this.getElementIdentifier(input);
       const keyEmails = [
         this.boundaryValues.email[0], // Minimal
         this.boundaryValues.email[1], // Plus sign
@@ -188,7 +193,7 @@ export class EdgeCasePersona implements TestingPersona {
             selector: input.selector,
             value: email.value,
           },
-          reasoning: `Edge case: ${email.reason}`,
+          reasoning: `${email.reason} in ${elementId}`,
           riskLevel: 'safe',
           expectedFindingType: 'email_validation_error',
           confidence: 0.7,
@@ -200,13 +205,14 @@ export class EdgeCasePersona implements TestingPersona {
     const selects = context.elements.filter(el => el.type === 'select');
 
     for (const select of selects) {
+      const elementId = this.getElementIdentifier(select);
       suggestions.push({
         action: {
           action: 'select',
           selector: select.selector,
           value: '', // Try selecting nothing
         },
-        reasoning: 'Edge case: Select with no/empty value',
+        reasoning: `Empty selection in ${elementId}`,
         riskLevel: 'safe',
         expectedFindingType: 'select_validation_error',
         confidence: 0.65,
@@ -214,9 +220,15 @@ export class EdgeCasePersona implements TestingPersona {
     }
 
     // Pagination edge cases (if detected)
-    if (context.url.includes('page=') || context.elements.some(el => 
-      el.selector.includes('pagination') || el.text?.includes('Next') || el.text?.includes('Previous')
-    )) {
+    if (
+      context.url.includes('page=') ||
+      context.elements.some(
+        el =>
+          el.selector.includes('pagination') ||
+          el.text?.includes('Next') ||
+          el.text?.includes('Previous')
+      )
+    ) {
       const pageUrl = context.url.replace(/page=\d+/, 'page=0');
       suggestions.push({
         action: {
@@ -295,14 +307,51 @@ export class EdgeCasePersona implements TestingPersona {
   isRelevant(context: LLMPageContext): boolean {
     // Edge case testing is relevant when there are input fields or URL parameters
     return (
-      context.elements.some(el => 
-        el.type === 'input' || 
-        el.type === 'textarea' || 
-        el.type === 'select'
+      context.elements.some(
+        el => el.type === 'input' || el.type === 'textarea' || el.type === 'select'
       ) ||
       context.url.includes('?') ||
       context.url.includes('page=') ||
       context.url.includes('id=')
     );
+  }
+
+  /**
+   * Extract a readable identifier from an element for display in suggestions.
+   */
+  private getElementIdentifier(element: LLMPageContext['elements'][0]): string {
+    // Prefer text content if available and meaningful
+    if (element.text && element.text.trim().length > 0) {
+      const truncatedText =
+        element.text.length > 20 ? element.text.substring(0, 20) + '...' : element.text;
+      return `"${truncatedText}"`;
+    }
+
+    // Extract meaningful parts from selector
+    const selector = element.selector;
+
+    // Try to extract ID
+    const idMatch = selector.match(/#([\w-]+)/);
+    if (idMatch) {
+      return `#${idMatch[1]}`;
+    }
+
+    // Try to extract name or other attributes
+    const nameMatch = selector.match(/\[name=["']?([\w-]+)["']?\]/);
+    if (nameMatch) {
+      return `[name="${nameMatch[1]}"]`;
+    }
+
+    const placeholderMatch = selector.match(/\[placeholder=["']?([^"'\]]+)["']?\]/);
+    if (placeholderMatch) {
+      const truncated =
+        placeholderMatch[1].length > 20
+          ? placeholderMatch[1].substring(0, 20) + '...'
+          : placeholderMatch[1];
+      return `[${truncated}]`;
+    }
+
+    // Fall back to element type
+    return element.type || 'element';
   }
 }

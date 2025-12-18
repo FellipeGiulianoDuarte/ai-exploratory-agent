@@ -58,16 +58,16 @@ export interface ToolDefinition {
 export interface Tool<TParams = unknown, TResult = unknown> {
   /** Unique name identifying this tool */
   readonly name: string;
-  
+
   /** Human-readable description of what the tool does */
   readonly description: string;
-  
+
   /** Get the tool definition for LLM function calling */
   getDefinition(): ToolDefinition;
-  
+
   /** Validate the parameters before execution */
   validateParams(params: TParams): { valid: boolean; errors: string[] };
-  
+
   /** Execute the tool with given parameters and context */
   execute(params: TParams, context: ToolContext): Promise<ToolResult<TResult>>;
 }

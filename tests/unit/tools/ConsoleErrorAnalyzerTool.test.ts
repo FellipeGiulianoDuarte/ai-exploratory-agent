@@ -29,18 +29,20 @@ describe('ConsoleErrorAnalyzerTool', () => {
   });
 
   it('should report no errors when console is clean', async () => {
-    mockBrowser.extractPageState.mockResolvedValue(PageState.create({
-      url: 'https://example.com',
-      title: 'Test',
-      contentHash: 'hash',
-      timestamp: new Date(),
-      interactiveElements: [],
-      visibleText: '',
-      isLoading: false,
-      consoleErrors: [],
-      networkErrors: [],
-      viewport: { width: 1920, height: 1080 },
-    }));
+    mockBrowser.extractPageState.mockResolvedValue(
+      PageState.create({
+        url: 'https://example.com',
+        title: 'Test',
+        contentHash: 'hash',
+        timestamp: new Date(),
+        interactiveElements: [],
+        visibleText: '',
+        isLoading: false,
+        consoleErrors: [],
+        networkErrors: [],
+        viewport: { width: 1920, height: 1080 },
+      })
+    );
 
     const result = await tool.execute({}, mockContext);
 
@@ -50,21 +52,23 @@ describe('ConsoleErrorAnalyzerTool', () => {
   });
 
   it('should detect and categorize critical errors', async () => {
-    mockBrowser.extractPageState.mockResolvedValue(PageState.create({
-      url: 'https://example.com',
-      title: 'Test',
-      contentHash: 'hash',
-      timestamp: new Date(),
-      interactiveElements: [],
-      visibleText: '',
-      isLoading: false,
-      consoleErrors: [
-        'Unhandled exception: Cannot read property of undefined',
-        'Security error: Access denied',
-      ],
-      networkErrors: [],
-      viewport: { width: 1920, height: 1080 },
-    }));
+    mockBrowser.extractPageState.mockResolvedValue(
+      PageState.create({
+        url: 'https://example.com',
+        title: 'Test',
+        contentHash: 'hash',
+        timestamp: new Date(),
+        interactiveElements: [],
+        visibleText: '',
+        isLoading: false,
+        consoleErrors: [
+          'Unhandled exception: Cannot read property of undefined',
+          'Security error: Access denied',
+        ],
+        networkErrors: [],
+        viewport: { width: 1920, height: 1080 },
+      })
+    );
 
     const result = await tool.execute({}, mockContext);
 
@@ -74,21 +78,23 @@ describe('ConsoleErrorAnalyzerTool', () => {
   });
 
   it('should detect high severity errors', async () => {
-    mockBrowser.extractPageState.mockResolvedValue(PageState.create({
-      url: 'https://example.com',
-      title: 'Test',
-      contentHash: 'hash',
-      timestamp: new Date(),
-      interactiveElements: [],
-      visibleText: '',
-      isLoading: false,
-      consoleErrors: [
-        'Error: Failed to fetch data',
-        'TypeError: Cannot read property "name" of undefined',
-      ],
-      networkErrors: [],
-      viewport: { width: 1920, height: 1080 },
-    }));
+    mockBrowser.extractPageState.mockResolvedValue(
+      PageState.create({
+        url: 'https://example.com',
+        title: 'Test',
+        contentHash: 'hash',
+        timestamp: new Date(),
+        interactiveElements: [],
+        visibleText: '',
+        isLoading: false,
+        consoleErrors: [
+          'Error: Failed to fetch data',
+          'TypeError: Cannot read property "name" of undefined',
+        ],
+        networkErrors: [],
+        viewport: { width: 1920, height: 1080 },
+      })
+    );
 
     const result = await tool.execute({}, mockContext);
 
@@ -99,22 +105,24 @@ describe('ConsoleErrorAnalyzerTool', () => {
   });
 
   it('should categorize errors by type', async () => {
-    mockBrowser.extractPageState.mockResolvedValue(PageState.create({
-      url: 'https://example.com',
-      title: 'Test',
-      contentHash: 'hash',
-      timestamp: new Date(),
-      interactiveElements: [],
-      visibleText: '',
-      isLoading: false,
-      consoleErrors: [
-        'CORS error: Access-Control-Allow-Origin',
-        'Network error: Failed to fetch',
-        'Warning: Deprecated API usage',
-      ],
-      networkErrors: [],
-      viewport: { width: 1920, height: 1080 },
-    }));
+    mockBrowser.extractPageState.mockResolvedValue(
+      PageState.create({
+        url: 'https://example.com',
+        title: 'Test',
+        contentHash: 'hash',
+        timestamp: new Date(),
+        interactiveElements: [],
+        visibleText: '',
+        isLoading: false,
+        consoleErrors: [
+          'CORS error: Access-Control-Allow-Origin',
+          'Network error: Failed to fetch',
+          'Warning: Deprecated API usage',
+        ],
+        networkErrors: [],
+        viewport: { width: 1920, height: 1080 },
+      })
+    );
 
     const result = await tool.execute({}, mockContext);
 

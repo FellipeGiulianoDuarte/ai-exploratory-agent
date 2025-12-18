@@ -107,8 +107,7 @@ export class Finding extends Entity<FindingProps> {
     totalImages: number,
     details: string
   ): Finding {
-    const severity: FindingSeverity =
-      brokenCount > 5 ? 'high' : brokenCount > 2 ? 'medium' : 'low';
+    const severity: FindingSeverity = brokenCount > 5 ? 'high' : brokenCount > 2 ? 'medium' : 'low';
 
     return Finding.create({
       sessionId,
@@ -137,14 +136,18 @@ export class Finding extends Entity<FindingProps> {
     pageTitle: string,
     errors: string[]
   ): Finding {
-    const severity: FindingSeverity = errors.length > 10 ? 'high' : errors.length > 3 ? 'medium' : 'low';
+    const severity: FindingSeverity =
+      errors.length > 10 ? 'high' : errors.length > 3 ? 'medium' : 'low';
 
     return Finding.create({
       sessionId,
       type: 'console_error',
       severity,
       title: `${errors.length} console error${errors.length > 1 ? 's' : ''} detected`,
-      description: `Console errors found:\n${errors.slice(0, 10).map((e) => `- ${e}`).join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more` : ''}`,
+      description: `Console errors found:\n${errors
+        .slice(0, 10)
+        .map(e => `- ${e}`)
+        .join('\n')}${errors.length > 10 ? `\n... and ${errors.length - 10} more` : ''}`,
       pageUrl,
       pageTitle,
       stepNumber,

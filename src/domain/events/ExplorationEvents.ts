@@ -1,5 +1,5 @@
 import { BaseDomainEvent } from './DomainEvent';
-import { ActionDecision } from '../../application/ports/LLMPort';
+import { ActionDecision } from '../exploration/ActionTypes';
 import { BrokenImage } from '../findings/BrokenImage';
 
 /**

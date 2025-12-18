@@ -39,10 +39,7 @@ export interface ScreenshotReport {
  * - Recording error messages
  * - Creating visual regression references
  */
-export class ScreenshotCaptureTool extends BaseTool<
-  ScreenshotCaptureParams,
-  ScreenshotReport
-> {
+export class ScreenshotCaptureTool extends BaseTool<ScreenshotCaptureParams, ScreenshotReport> {
   readonly name = 'capture_screenshot';
   readonly description =
     'Captures a screenshot of the current page for visual evidence. Useful for documenting bugs, errors, and broken UI states.';
@@ -113,12 +110,7 @@ export class ScreenshotCaptureTool extends BaseTool<
     }
 
     // Generate summary
-    const summary = this.generateSummary(
-      pageUrl,
-      description,
-      params.fullPage ?? false,
-      filesize
-    );
+    const summary = this.generateSummary(pageUrl, description, params.fullPage ?? false, filesize);
 
     return {
       pageUrl,

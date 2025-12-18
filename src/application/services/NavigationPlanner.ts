@@ -1,6 +1,6 @@
 /**
  * Navigation Planner
- * 
+ *
  * Creates exploration plans from discovered URLs,
  * determines logical ordering based on workflows,
  * and suggests the next URL to visit.
@@ -97,15 +97,13 @@ export class NavigationPlanner {
     const authUrls = siteMap.urlsByCategory.auth;
     if (authUrls.length > 0) {
       // Order: register first, then login
-      const registerUrls = authUrls.filter(u => 
-        /register|signup|sign-up/i.test(u.normalizedUrl)
+      const registerUrls = authUrls.filter(u => /register|signup|sign-up/i.test(u.normalizedUrl));
+      const loginUrls = authUrls.filter(
+        u =>
+          /login|signin|sign-in/i.test(u.normalizedUrl) && !/register|signup/i.test(u.normalizedUrl)
       );
-      const loginUrls = authUrls.filter(u => 
-        /login|signin|sign-in/i.test(u.normalizedUrl) &&
-        !/register|signup/i.test(u.normalizedUrl)
-      );
-      const otherAuthUrls = authUrls.filter(u => 
-        !registerUrls.includes(u) && !loginUrls.includes(u)
+      const otherAuthUrls = authUrls.filter(
+        u => !registerUrls.includes(u) && !loginUrls.includes(u)
       );
 
       if (registerUrls.length > 0 || loginUrls.length > 0) {
@@ -137,7 +135,7 @@ export class NavigationPlanner {
       // Order cart before checkout
       const cartOnly = cartUrls.filter(u => /cart|basket/i.test(u.normalizedUrl));
       const checkoutUrls = cartUrls.filter(u => /checkout|payment|order/i.test(u.normalizedUrl));
-      
+
       phases.push({
         name: 'Shopping Flow',
         description: 'Test cart and checkout process',
@@ -220,7 +218,7 @@ export class NavigationPlanner {
       const phase = phases[i];
       const unvisited = phase.urls.filter(u => !u.visited).length;
       lines.push(`   ${i + 1}. ${phase.name} (${unvisited}/${phase.urls.length} remaining)`);
-      
+
       // Show first 3 URLs
       const urlsToShow = phase.urls.slice(0, 3);
       for (const url of urlsToShow) {
@@ -323,9 +321,13 @@ export class NavigationPlanner {
   /**
    * Generate reason for navigation suggestion
    */
-  private getNavigationReason(url: DiscoveredURL, phase: ExplorationPhase, prerequisitesMet: boolean): string {
+  private getNavigationReason(
+    url: DiscoveredURL,
+    phase: ExplorationPhase,
+    prerequisitesMet: boolean
+  ): string {
     const path = new URL(url.normalizedUrl).pathname;
-    
+
     if (!prerequisitesMet) {
       return `[Blocked] ${phase.name}: ${path} - Prerequisites not met (${phase.prerequisites.join(', ')})`;
     }
@@ -366,15 +368,12 @@ export class NavigationPlanner {
   getPlanContextForLLM(): string {
     const unvisited = this.urlDiscovery.getUnvisitedURLs();
     const suggestion = this.getNextSuggestion('');
-    
+
     if (unvisited.length === 0) {
       return 'All discovered URLs have been visited.';
     }
 
-    const lines: string[] = [
-      `## URL Discovery Queue (${unvisited.length} unvisited)`,
-      '',
-    ];
+    const lines: string[] = [`## URL Discovery Queue (${unvisited.length} unvisited)`, ''];
 
     // Group by category
     const byCategory: Record<string, DiscoveredURL[]> = {};

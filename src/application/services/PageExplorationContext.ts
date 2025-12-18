@@ -1,6 +1,6 @@
 /**
  * Page Exploration Context
- * 
+ *
  * Manages fresh context for each page visit.
  * Each page gets:
  * - Clean action history
@@ -107,11 +107,7 @@ export class PageExplorationContext {
   /**
    * Record an action performed on the current page.
    */
-  recordAction(
-    action: ActionDecision,
-    success: boolean,
-    resultDescription: string = ''
-  ): void {
+  recordAction(action: ActionDecision, success: boolean, resultDescription: string = ''): void {
     this.actions.push({
       action,
       timestamp: new Date(),
@@ -132,10 +128,12 @@ export class PageExplorationContext {
     }
 
     // Track form submissions
-    if (action.action === 'click' && 
-        (action.selector?.includes('submit') || 
-         action.selector?.includes('btn') ||
-         action.reasoning?.toLowerCase().includes('submit'))) {
+    if (
+      action.action === 'click' &&
+      (action.selector?.includes('submit') ||
+        action.selector?.includes('btn') ||
+        action.reasoning?.toLowerCase().includes('submit'))
+    ) {
       this.formsSubmitted++;
     }
   }
@@ -160,7 +158,7 @@ export class PageExplorationContext {
   evaluateExitCriteria(): ExitCriteriaResult {
     const completed: string[] = [];
     const pending: string[] = [];
-    
+
     // Time limit
     const timeSpent = Date.now() - this.startTime.getTime();
     if (timeSpent >= this.config.maxTimePerPage) {
@@ -172,7 +170,9 @@ export class PageExplorationContext {
         confidence: 1.0,
       };
     }
-    completed.push(`Time: ${Math.round(timeSpent / 1000)}s / ${this.config.maxTimePerPage / 1000}s`);
+    completed.push(
+      `Time: ${Math.round(timeSpent / 1000)}s / ${this.config.maxTimePerPage / 1000}s`
+    );
 
     // Action limit
     if (this.actions.length >= this.config.maxActionsPerPage) {
@@ -207,15 +207,18 @@ export class PageExplorationContext {
 
     // Element interactions
     if (this.elementsInteracted.size < this.config.minElementInteractions) {
-      pending.push(`Elements: ${this.elementsInteracted.size} / ${this.config.minElementInteractions}`);
+      pending.push(
+        `Elements: ${this.elementsInteracted.size} / ${this.config.minElementInteractions}`
+      );
     } else {
       completed.push(`Elements: ${this.elementsInteracted.size} interacted`);
     }
 
     // Determine if we should exit
-    const criteriaComplete = missingTools.length === 0 && 
-                            this.elementsInteracted.size >= this.config.minElementInteractions;
-    
+    const criteriaComplete =
+      missingTools.length === 0 &&
+      this.elementsInteracted.size >= this.config.minElementInteractions;
+
     // Calculate confidence based on completion
     const confidence = criteriaComplete ? 0.8 : 0.4;
 
@@ -234,18 +237,18 @@ export class PageExplorationContext {
    */
   getStepsToReproduce(): string[] {
     const steps: string[] = [];
-    
+
     // Start with navigation to the page
     steps.push(`1. Navigate to ${this.currentUrl}`);
-    
+
     // Add each successful action
     let stepNum = 2;
     for (const tracked of this.actions) {
       if (!tracked.success) continue;
-      
+
       const action = tracked.action;
       let stepText = '';
-      
+
       switch (action.action) {
         case 'click':
           stepText = `Click on "${action.selector}"`;
@@ -280,11 +283,11 @@ export class PageExplorationContext {
         default:
           continue;
       }
-      
+
       steps.push(`${stepNum}. ${stepText}`);
       stepNum++;
     }
-    
+
     return steps;
   }
 
@@ -296,15 +299,17 @@ export class PageExplorationContext {
     if (recent.length === 0) {
       return 'No actions yet on this page.';
     }
-    
-    return recent.map((tracked, i) => {
-      const action = tracked.action;
-      const status = tracked.success ? '✓' : '✗';
-      let desc = action.action;
-      if (action.selector) desc += ` on ${action.selector}`;
-      if (action.value) desc += ` = "${action.value.substring(0, 30)}"`;
-      return `${i + 1}. [${status}] ${desc}`;
-    }).join('\n');
+
+    return recent
+      .map((tracked, i) => {
+        const action = tracked.action;
+        const status = tracked.success ? '✓' : '✗';
+        let desc = action.action;
+        if (action.selector) desc += ` on ${action.selector}`;
+        if (action.value) desc += ` = "${action.value.substring(0, 30)}"`;
+        return `${i + 1}. [${status}] ${desc}`;
+      })
+      .join('\n');
   }
 
   /**
@@ -329,20 +334,20 @@ export class PageExplorationContext {
   getNextActionSuggestions(pageContext: LLMPageContext): string[] {
     const suggestions: string[] = [];
     // Exit criteria is used internally for suggestion priority
-    
+
     // Suggest running missing tools
     const missingTools = this.config.requiredTools.filter(t => !this.toolsRun.has(t));
     for (const tool of missingTools) {
       suggestions.push(`Run ${tool} tool to check for issues`);
     }
-    
+
     // Suggest interacting with more elements
     if (this.elementsInteracted.size < this.config.minElementInteractions) {
       // Find uninteracted elements
       const uninteracted = pageContext.elements
         .filter(el => !this.elementsInteracted.has(el.selector))
         .slice(0, 3);
-      
+
       for (const el of uninteracted) {
         if (el.type === 'button' || el.type === 'link') {
           suggestions.push(`Click on ${el.selector} ("${el.text}")`);
@@ -353,7 +358,7 @@ export class PageExplorationContext {
         }
       }
     }
-    
+
     return suggestions;
   }
 

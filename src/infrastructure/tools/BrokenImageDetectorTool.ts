@@ -30,7 +30,7 @@ interface RawImageData {
 
 /**
  * Tool that detects broken images on a web page.
- * 
+ *
  * Detection methods:
  * - Empty/invalid src attributes
  * - HTTP error responses (via HEAD request)
@@ -112,7 +112,7 @@ export class BrokenImageDetectorTool extends BaseTool<
 
       images.forEach(img => {
         const rect = img.getBoundingClientRect();
-        
+
         // Generate a selector for this image
         let selector = '';
         if (img.id) {

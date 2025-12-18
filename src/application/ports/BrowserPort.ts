@@ -140,7 +140,10 @@ export interface BrowserPort {
    * @param selector - CSS selector to wait for
    * @param options - Wait options
    */
-  waitForSelector(selector: string, options?: { timeout?: number; state?: 'visible' | 'hidden' | 'attached' }): Promise<ActionResult>;
+  waitForSelector(
+    selector: string,
+    options?: { timeout?: number; state?: 'visible' | 'hidden' | 'attached' }
+  ): Promise<ActionResult>;
 
   /**
    * Executes JavaScript in the page context.

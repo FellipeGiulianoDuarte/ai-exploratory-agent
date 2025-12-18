@@ -1,4 +1,8 @@
-import { ToolRegistry, resetDefaultToolRegistry, getDefaultToolRegistry } from '../../../src/domain/tools/ToolRegistry';
+import {
+  ToolRegistry,
+  resetDefaultToolRegistry,
+  getDefaultToolRegistry,
+} from '../../../src/domain/tools/ToolRegistry';
 import { Tool, ToolContext, ToolResult, ToolDefinition } from '../../../src/domain/tools/Tool';
 
 // Mock tool implementation for testing
@@ -29,10 +33,7 @@ class MockTool implements Tool<{ value: string }, string> {
     return { valid: true, errors: [] };
   }
 
-  async execute(
-    params: { value: string },
-    _context: ToolContext
-  ): Promise<ToolResult<string>> {
+  async execute(params: { value: string }, _context: ToolContext): Promise<ToolResult<string>> {
     return {
       success: true,
       data: `Executed with value: ${params.value}`,
@@ -135,11 +136,7 @@ describe('ToolRegistry', () => {
         currentUrl: 'https://example.com',
       };
 
-      const result = await registry.invoke<string>(
-        'test_tool',
-        { value: 'test' },
-        mockContext
-      );
+      const result = await registry.invoke<string>('test_tool', { value: 'test' }, mockContext);
 
       expect(result.success).toBe(true);
       expect(result.data).toBe('Executed with value: test');

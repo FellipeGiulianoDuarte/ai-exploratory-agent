@@ -67,7 +67,7 @@ describe('PageState', () => {
 
       const elements = state.interactiveElements;
       expect(elements.length).toBe(3);
-      
+
       // Modifying returned array should not affect state
       elements.pop();
       expect(state.interactiveElements.length).toBe(3);
@@ -133,7 +133,7 @@ describe('PageState', () => {
 
       const buttons = state.getElementsByType('button');
       expect(buttons.length).toBe(2);
-      
+
       const links = state.getElementsByType('link');
       expect(links.length).toBe(1);
     });

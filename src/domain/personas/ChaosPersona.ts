@@ -1,9 +1,10 @@
-import { LLMPageContext, ActionDecision } from '../../application/ports/LLMPort';
+import { PageContext as LLMPageContext } from '../exploration/PageContext';
+import { ActionDecision } from '../exploration/ActionTypes';
 import { TestingPersona, PersonaSuggestion } from './TestingPersona';
 
 /**
  * The Chaos Agent - "How can I break this?"
- * 
+ *
  * Focuses on destructive testing, finding ways to cause errors,
  * unexpected states, and application crashes.
  */
@@ -20,11 +21,12 @@ export class ChaosPersona implements TestingPersona {
     const suggestions: PersonaSuggestion[] = [];
 
     // Look for input fields to abuse
-    const inputs = context.elements.filter(el => 
-      el.type === 'input' || el.type === 'textarea'
-    );
+    const inputs = context.elements.filter(el => el.type === 'input' || el.type === 'textarea');
 
     for (const input of inputs) {
+      // Create a readable element identifier
+      const elementId = this.getElementIdentifier(input);
+
       // Empty submission test
       suggestions.push({
         action: {
@@ -32,7 +34,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: '',
         },
-        reasoning: 'Submit empty value to test validation',
+        reasoning: `Submit empty value in ${elementId}`,
         riskLevel: 'safe',
         expectedFindingType: 'validation_error',
         confidence: 0.8,
@@ -45,7 +47,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: 'A'.repeat(10000),
         },
-        reasoning: 'Test with extremely long input to check buffer/length handling',
+        reasoning: `Test extremely long input in ${elementId}`,
         riskLevel: 'moderate',
         expectedFindingType: 'input_handling',
         confidence: 0.7,
@@ -58,7 +60,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: '!@#$%^&*(){}[]|\\:";\'<>?,./`~',
         },
-        reasoning: 'Test special character handling',
+        reasoning: `Test special characters in ${elementId}`,
         riskLevel: 'safe',
         expectedFindingType: 'input_handling',
         confidence: 0.75,
@@ -71,7 +73,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: '测试 🔥 тест العربية',
         },
-        reasoning: 'Test unicode and emoji handling',
+        reasoning: `Test unicode/emoji in ${elementId}`,
         riskLevel: 'safe',
         expectedFindingType: 'encoding_error',
         confidence: 0.7,
@@ -84,7 +86,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: 'test\x00null\x1Fcontrol',
         },
-        reasoning: 'Test null byte and control character handling',
+        reasoning: `Test null bytes in ${elementId}`,
         riskLevel: 'moderate',
         expectedFindingType: 'security_vulnerability',
         confidence: 0.6,
@@ -92,20 +94,21 @@ export class ChaosPersona implements TestingPersona {
     }
 
     // Look for buttons to rapid-fire click
-    const buttons = context.elements.filter(el => 
-      el.type === 'button' || el.type === 'submit'
-    );
+    const buttons = context.elements.filter(el => el.type === 'button' || el.type === 'submit');
 
     for (const button of buttons) {
-      if (button.text?.toLowerCase().includes('submit') || 
-          button.text?.toLowerCase().includes('save') ||
-          button.text?.toLowerCase().includes('add')) {
+      if (
+        button.text?.toLowerCase().includes('submit') ||
+        button.text?.toLowerCase().includes('save') ||
+        button.text?.toLowerCase().includes('add')
+      ) {
+        const elementId = this.getElementIdentifier(button);
         suggestions.push({
           action: {
             action: 'click',
             selector: button.selector,
           },
-          reasoning: 'Rapid click to test race conditions and double-submit handling',
+          reasoning: `Rapid click ${elementId} for race conditions`,
           riskLevel: 'moderate',
           expectedFindingType: 'race_condition',
           confidence: 0.6,
@@ -114,14 +117,17 @@ export class ChaosPersona implements TestingPersona {
     }
 
     // Look for numeric inputs
-    const numericInputs = context.elements.filter(el => 
-      el.selector.includes('quantity') || 
-      el.selector.includes('amount') ||
-      el.selector.includes('price') ||
-      el.selector.includes('number')
+    const numericInputs = context.elements.filter(
+      el =>
+        el.selector.includes('quantity') ||
+        el.selector.includes('amount') ||
+        el.selector.includes('price') ||
+        el.selector.includes('number')
     );
 
     for (const input of numericInputs) {
+      const elementId = this.getElementIdentifier(input);
+
       // Negative numbers
       suggestions.push({
         action: {
@@ -129,7 +135,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: '-999999',
         },
-        reasoning: 'Test negative number handling',
+        reasoning: `Test negative number in ${elementId}`,
         riskLevel: 'moderate',
         expectedFindingType: 'business_logic',
         confidence: 0.8,
@@ -142,7 +148,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: '0.0000001',
         },
-        reasoning: 'Test decimal precision handling',
+        reasoning: `Test decimal precision in ${elementId}`,
         riskLevel: 'safe',
         expectedFindingType: 'calculation_error',
         confidence: 0.7,
@@ -155,7 +161,7 @@ export class ChaosPersona implements TestingPersona {
           selector: input.selector,
           value: '999999999999999999',
         },
-        reasoning: 'Test integer overflow handling',
+        reasoning: `Test integer overflow in ${elementId}`,
         riskLevel: 'moderate',
         expectedFindingType: 'overflow_error',
         confidence: 0.7,
@@ -178,11 +184,51 @@ export class ChaosPersona implements TestingPersona {
 
   isRelevant(context: LLMPageContext): boolean {
     // Chaos testing is relevant when there are interactive elements
-    return context.elements.some(el => 
-      el.type === 'input' || 
-      el.type === 'button' || 
-      el.type === 'textarea' ||
-      el.type === 'select'
+    return context.elements.some(
+      el =>
+        el.type === 'input' ||
+        el.type === 'button' ||
+        el.type === 'textarea' ||
+        el.type === 'select'
     );
+  }
+
+  /**
+   * Extract a readable identifier from an element for display in suggestions.
+   */
+  private getElementIdentifier(element: LLMPageContext['elements'][0]): string {
+    // Prefer text content if available and meaningful
+    if (element.text && element.text.trim().length > 0) {
+      const truncatedText =
+        element.text.length > 20 ? element.text.substring(0, 20) + '...' : element.text;
+      return `"${truncatedText}"`;
+    }
+
+    // Extract meaningful parts from selector
+    const selector = element.selector;
+
+    // Try to extract ID
+    const idMatch = selector.match(/#([\w-]+)/);
+    if (idMatch) {
+      return `#${idMatch[1]}`;
+    }
+
+    // Try to extract name or other attributes
+    const nameMatch = selector.match(/\[name=["']?([\w-]+)["']?\]/);
+    if (nameMatch) {
+      return `[name="${nameMatch[1]}"]`;
+    }
+
+    const placeholderMatch = selector.match(/\[placeholder=["']?([^"'\]]+)["']?\]/);
+    if (placeholderMatch) {
+      const truncated =
+        placeholderMatch[1].length > 20
+          ? placeholderMatch[1].substring(0, 20) + '...'
+          : placeholderMatch[1];
+      return `[${truncated}]`;
+    }
+
+    // Fall back to element type
+    return element.type || 'element';
   }
 }

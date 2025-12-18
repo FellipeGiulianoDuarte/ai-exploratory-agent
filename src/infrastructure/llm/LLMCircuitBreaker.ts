@@ -1,4 +1,5 @@
 import { LLMPort } from '../../application/ports/LLMPort';
+import { loggers } from '../logging';
 
 /**
  * Circuit breaker state for tracking provider health.
@@ -125,7 +126,7 @@ export class LLMCircuitBreaker implements LLMPort {
     if (state.state === 'half_open' && state.successCount >= this.config.successThreshold) {
       state.state = 'closed';
       state.successCount = 0;
-      console.log(`[LLM] Circuit breaker: ${providerName} recovered (CLOSED)`);
+      loggers.llm.info(`Circuit breaker: ${providerName} recovered (CLOSED)`);
     }
   }
 
@@ -143,8 +144,8 @@ export class LLMCircuitBreaker implements LLMPort {
     if (state.failureCount >= this.config.failureThreshold && state.state === 'closed') {
       state.state = 'open';
       state.lastOpenTime = Date.now();
-      console.warn(
-        `[LLM] Circuit breaker: ${providerName} opened after ${state.failureCount} failures`
+      loggers.llm.warn(
+        `Circuit breaker: ${providerName} opened after ${state.failureCount} failures`
       );
     }
   }
@@ -177,12 +178,12 @@ export class LLMCircuitBreaker implements LLMPort {
       return result;
     } catch (error) {
       this.recordFailure(provider.name);
-      console.warn(`[LLM] Provider ${provider.name} failed:`, error);
+      loggers.llm.warn(`Provider ${provider.name} failed: ${error}`);
 
       // Try next available provider
       const nextProvider = this.getAvailableProvider();
       if (nextProvider && nextProvider.name !== provider.name) {
-        console.log(`[LLM] Falling back to ${nextProvider.name}`);
+        loggers.llm.info(`Falling back to ${nextProvider.name}`);
         try {
           const result = await nextProvider.adapter.decideNextAction(request, options);
           this.recordSuccess(nextProvider.name);
@@ -211,11 +212,11 @@ export class LLMCircuitBreaker implements LLMPort {
       return result;
     } catch (error) {
       this.recordFailure(provider.name);
-      console.warn(`[LLM] Provider ${provider.name} failed:`, error);
+      loggers.llm.warn(`Provider ${provider.name} failed: ${error}`);
 
       const nextProvider = this.getAvailableProvider();
       if (nextProvider && nextProvider.name !== provider.name) {
-        console.log(`[LLM] Falling back to ${nextProvider.name}`);
+        loggers.llm.info(`Falling back to ${nextProvider.name}`);
         try {
           const result = await nextProvider.adapter.analyzeFinding(finding, context);
           this.recordSuccess(nextProvider.name);
@@ -242,11 +243,11 @@ export class LLMCircuitBreaker implements LLMPort {
       return result;
     } catch (error) {
       this.recordFailure(provider.name);
-      console.warn(`[LLM] Provider ${provider.name} failed:`, error);
+      loggers.llm.warn(`Provider ${provider.name} failed: ${error}`);
 
       const nextProvider = this.getAvailableProvider();
       if (nextProvider && nextProvider.name !== provider.name) {
-        console.log(`[LLM] Falling back to ${nextProvider.name}`);
+        loggers.llm.info(`Falling back to ${nextProvider.name}`);
         try {
           const result = await nextProvider.adapter.generateSummary(history, findings);
           this.recordSuccess(nextProvider.name);

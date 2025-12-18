@@ -92,7 +92,7 @@ export class FileBasedSessionRepository implements SessionRepository {
 
   async findByStatus(status: string): Promise<ExplorationSession[]> {
     const allSessions = await this.findAll();
-    return allSessions.filter((s) => s.status === status);
+    return allSessions.filter(s => s.status === status);
   }
 
   async delete(id: string): Promise<boolean> {
@@ -148,9 +148,7 @@ export class FileBasedSessionRepository implements SessionRepository {
    */
   async findResumable(): Promise<ExplorationSession[]> {
     const allSessions = await this.findAll();
-    return allSessions.filter(
-      (s) => s.status === 'paused' || s.status === 'running'
-    );
+    return allSessions.filter(s => s.status === 'paused' || s.status === 'running');
   }
 
   /**

@@ -1,9 +1,10 @@
-import { LLMPageContext, ActionDecision } from '../../application/ports/LLMPort';
+import { PageContext as LLMPageContext } from '../exploration/PageContext';
+import { ActionDecision } from '../exploration/ActionTypes';
 import { TestingPersona, PersonaSuggestion } from './TestingPersona';
 
 /**
  * The Security Agent - "Is this secure?"
- * 
+ *
  * Focuses on finding security vulnerabilities including XSS, SQL injection,
  * IDOR, CSRF, and other common security issues.
  */
@@ -33,9 +34,9 @@ export class SecurityPersona implements TestingPersona {
     "' OR '1'='1' --",
     "'; DROP TABLE users; --",
     "1' AND '1'='1",
-    "1 UNION SELECT NULL,NULL,NULL--",
+    '1 UNION SELECT NULL,NULL,NULL--',
     "' UNION SELECT username,password FROM users--",
-    "1; SELECT * FROM users",
+    '1; SELECT * FROM users',
     "admin'--",
     "1' ORDER BY 1--",
     "' OR 1=1#",
@@ -43,10 +44,31 @@ export class SecurityPersona implements TestingPersona {
 
   // IDOR patterns to test
   private idorPatterns = [
-    { original: /\/user\/(\d+)/, test: (id: string) => [`/user/${parseInt(id) + 1}`, `/user/${parseInt(id) - 1}`, '/user/1', '/user/0'] },
-    { original: /\/order\/(\d+)/, test: (id: string) => [`/order/${parseInt(id) + 1}`, `/order/${parseInt(id) - 1}`, '/order/1'] },
-    { original: /\/account\/(\d+)/, test: (id: string) => [`/account/${parseInt(id) + 1}`, `/account/1`] },
-    { original: /id=(\d+)/, test: (id: string) => [`id=${parseInt(id) + 1}`, `id=${parseInt(id) - 1}`, 'id=1'] },
+    {
+      original: /\/user\/(\d+)/,
+      test: (id: string) => [
+        `/user/${parseInt(id) + 1}`,
+        `/user/${parseInt(id) - 1}`,
+        '/user/1',
+        '/user/0',
+      ],
+    },
+    {
+      original: /\/order\/(\d+)/,
+      test: (id: string) => [
+        `/order/${parseInt(id) + 1}`,
+        `/order/${parseInt(id) - 1}`,
+        '/order/1',
+      ],
+    },
+    {
+      original: /\/account\/(\d+)/,
+      test: (id: string) => [`/account/${parseInt(id) + 1}`, `/account/1`],
+    },
+    {
+      original: /id=(\d+)/,
+      test: (id: string) => [`id=${parseInt(id) + 1}`, `id=${parseInt(id) - 1}`, 'id=1'],
+    },
   ];
 
   analyzeAndSuggest(
@@ -56,9 +78,7 @@ export class SecurityPersona implements TestingPersona {
     const suggestions: PersonaSuggestion[] = [];
 
     // Get all input fields
-    const inputs = context.elements.filter(el => 
-      el.type === 'input' || el.type === 'textarea'
-    );
+    const inputs = context.elements.filter(el => el.type === 'input' || el.type === 'textarea');
 
     // XSS testing on all inputs
     for (const input of inputs) {
@@ -103,14 +123,15 @@ export class SecurityPersona implements TestingPersona {
     }
 
     // SQL injection on inputs that might query database
-    const dbInputs = inputs.filter(el => 
-      el.selector.includes('search') ||
-      el.selector.includes('query') ||
-      el.selector.includes('username') ||
-      el.selector.includes('email') ||
-      el.selector.includes('id') ||
-      el.selector.includes('login') ||
-      el.selector.includes('filter')
+    const dbInputs = inputs.filter(
+      el =>
+        el.selector.includes('search') ||
+        el.selector.includes('query') ||
+        el.selector.includes('username') ||
+        el.selector.includes('email') ||
+        el.selector.includes('id') ||
+        el.selector.includes('login') ||
+        el.selector.includes('filter')
     );
 
     for (const input of dbInputs) {
@@ -180,10 +201,11 @@ export class SecurityPersona implements TestingPersona {
     // This would be better handled by a dedicated tool
 
     // Path traversal on file-related inputs
-    const fileInputs = inputs.filter(el =>
-      el.selector.includes('file') ||
-      el.selector.includes('path') ||
-      el.selector.includes('document')
+    const fileInputs = inputs.filter(
+      el =>
+        el.selector.includes('file') ||
+        el.selector.includes('path') ||
+        el.selector.includes('document')
     );
 
     for (const input of fileInputs) {

@@ -9,6 +9,7 @@ import {
   GuidanceReceivedEvent,
 } from '../../domain/events/ExplorationEvents';
 import { CLIInteractionAdapter } from '../cli/CLIInteractionAdapter';
+import { loggers } from '../logging';
 
 // Type alias for exploration event types
 type ExplorationEventHandler<T extends DomainEvent> = EventHandler<T>;
@@ -24,11 +25,7 @@ export class ExplorationEventHandlers {
   private handlers: Map<string, EventHandler<any>> = new Map();
   private verbose: boolean;
 
-  constructor(
-    eventBus: EventBus,
-    cli: CLIInteractionAdapter,
-    verbose: boolean = false
-  ) {
+  constructor(eventBus: EventBus, cli: CLIInteractionAdapter, verbose: boolean = false) {
     this.eventBus = eventBus;
     this.cli = cli;
     this.verbose = verbose;
@@ -73,9 +70,9 @@ export class ExplorationEventHandlers {
    */
   private handleSessionStarted(event: SessionStartedEvent): void {
     this.cli.displayStart(event.targetUrl, event.objective || 'General exploration');
-    
+
     if (this.verbose) {
-      console.log(`[Event] Session ${event.aggregateId} started`);
+      loggers.event.info(`Session ${event.aggregateId} started`);
     }
   }
 
@@ -89,9 +86,9 @@ export class ExplorationEventHandlers {
       duration: Date.now() - event.timestamp.getTime(), // Approximate
       reason: event.reason,
     });
-    
+
     if (this.verbose) {
-      console.log(`[Event] Session ${event.aggregateId} ended: ${event.reason}`);
+      loggers.event.info(`Session ${event.aggregateId} ended: ${event.reason}`);
     }
   }
 
@@ -101,7 +98,9 @@ export class ExplorationEventHandlers {
   private handleStepCompleted(event: StepCompletedEvent): void {
     if (this.verbose) {
       this.cli.displayStep(event.stepNumber, event.action);
-      console.log(`[Event] Step ${event.stepNumber} completed: ${event.success ? 'success' : 'failed'}`);
+      loggers.event.info(
+        `Step ${event.stepNumber} completed: ${event.success ? 'success' : 'failed'}`
+      );
     }
   }
 
@@ -110,9 +109,9 @@ export class ExplorationEventHandlers {
    */
   private handleFindingDiscovered(event: FindingDiscoveredEvent): void {
     this.cli.displayFinding(event.findingType, event.severity, event.description);
-    
+
     if (this.verbose) {
-      console.log(`[Event] Finding discovered: ${event.findingType} - ${event.description}`);
+      loggers.event.info(`Finding discovered: ${event.findingType} - ${event.description}`);
     }
   }
 
@@ -121,7 +120,7 @@ export class ExplorationEventHandlers {
    */
   private handleBrokenImagesDetected(event: BrokenImagesDetectedEvent): void {
     if (this.verbose) {
-      console.log(`[Event] ${event.brokenImages.length} broken images detected`);
+      loggers.event.info(`${event.brokenImages.length} broken images detected`);
     }
   }
 
@@ -130,7 +129,7 @@ export class ExplorationEventHandlers {
    */
   private handleCheckpointTriggered(event: CheckpointTriggeredEvent): void {
     if (this.verbose) {
-      console.log(`[Event] Checkpoint triggered: ${event.reason}`);
+      loggers.event.info(`Checkpoint triggered: ${event.reason}`);
     }
   }
 
@@ -139,7 +138,7 @@ export class ExplorationEventHandlers {
    */
   private handleGuidanceReceived(event: GuidanceReceivedEvent): void {
     if (this.verbose) {
-      console.log(`[Event] Guidance received: ${event.guidance}`);
+      loggers.event.info(`Guidance received: ${event.guidance}`);
     }
   }
 }

@@ -1,9 +1,10 @@
-import { LLMPageContext, ActionDecision } from '../../application/ports/LLMPort';
+import { PageContext as LLMPageContext } from '../exploration/PageContext';
+import { ActionDecision } from '../exploration/ActionTypes';
 import { TestingPersona, PersonaSuggestion } from './TestingPersona';
 
 /**
  * The Monitor Agent - Watches logs, network requests, and console messages
- * 
+ *
  * Focuses on analyzing runtime behavior, failed requests, console errors,
  * performance issues, and other behind-the-scenes problems.
  */
@@ -15,31 +16,10 @@ export class MonitorPersona implements TestingPersona {
 
   // Error severity classification
   private severityPatterns = {
-    critical: [
-      /unhandled.*exception/i,
-      /fatal/i,
-      /crash/i,
-      /security/i,
-      /unauthorized/i,
-    ],
-    high: [
-      /error/i,
-      /failed/i,
-      /500/i,
-      /503/i,
-      /timeout/i,
-    ],
-    medium: [
-      /warning/i,
-      /deprecated/i,
-      /404/i,
-      /not found/i,
-    ],
-    low: [
-      /info/i,
-      /debug/i,
-      /notice/i,
-    ],
+    critical: [/unhandled.*exception/i, /fatal/i, /crash/i, /security/i, /unauthorized/i],
+    high: [/error/i, /failed/i, /500/i, /503/i, /timeout/i],
+    medium: [/warning/i, /deprecated/i, /404/i, /not found/i],
+    low: [/info/i, /debug/i, /notice/i],
   };
 
   analyzeAndSuggest(
@@ -50,7 +30,7 @@ export class MonitorPersona implements TestingPersona {
 
     // Analyze console errors
     const consoleAnalysis = this.analyzeConsoleErrors(context.consoleErrors || []);
-    
+
     if (consoleAnalysis.critical.length > 0) {
       suggestions.push({
         action: {
@@ -197,7 +177,7 @@ export class MonitorPersona implements TestingPersona {
 
     for (const error of errors) {
       let classified = false;
-      
+
       for (const pattern of this.severityPatterns.critical) {
         if (pattern.test(error)) {
           result.critical.push(error);
@@ -205,7 +185,7 @@ export class MonitorPersona implements TestingPersona {
           break;
         }
       }
-      
+
       if (!classified) {
         for (const pattern of this.severityPatterns.high) {
           if (pattern.test(error)) {
@@ -215,7 +195,7 @@ export class MonitorPersona implements TestingPersona {
           }
         }
       }
-      
+
       if (!classified) {
         for (const pattern of this.severityPatterns.medium) {
           if (pattern.test(error)) {
@@ -225,7 +205,7 @@ export class MonitorPersona implements TestingPersona {
           }
         }
       }
-      
+
       if (!classified) {
         result.low.push(error);
       }
@@ -265,18 +245,9 @@ export class MonitorPersona implements TestingPersona {
   }
 
   private detectPerformanceIssues(errors: string[]): string[] {
-    const perfPatterns = [
-      /slow/i,
-      /performance/i,
-      /memory/i,
-      /leak/i,
-      /long task/i,
-      /blocking/i,
-    ];
+    const perfPatterns = [/slow/i, /performance/i, /memory/i, /leak/i, /long task/i, /blocking/i];
 
-    return errors.filter(error => 
-      perfPatterns.some(pattern => pattern.test(error))
-    );
+    return errors.filter(error => perfPatterns.some(pattern => pattern.test(error)));
   }
 
   getSystemPromptAddition(): string {

@@ -3,6 +3,7 @@ import { AnthropicAdapter } from './AnthropicAdapter';
 import { GeminiAdapter } from './GeminiAdapter';
 import { OpenAIAdapter } from './OpenAIAdapter';
 import { LLMCircuitBreaker, CircuitBreakerConfig } from './LLMCircuitBreaker';
+import { loggers } from '../logging';
 
 /**
  * Supported LLM providers.
@@ -68,8 +69,8 @@ export class LLMAdapterFactory {
     const primaryProvider = (process.env.LLM_PROVIDER ?? 'gemini') as LLMProvider;
     const fallbackProviders = (process.env.LLM_FALLBACK_PROVIDERS ?? '')
       .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s && s !== primaryProvider) as LLMProvider[];
+      .map(s => s.trim())
+      .filter(s => s && s !== primaryProvider) as LLMProvider[];
 
     // Build list of providers to try (primary first, then fallbacks)
     const providerList = [primaryProvider, ...fallbackProviders];
@@ -83,7 +84,7 @@ export class LLMAdapterFactory {
         case 'anthropic':
           apiKey = process.env.ANTHROPIC_API_KEY ?? '';
           if (!apiKey) {
-            console.warn('ANTHROPIC_API_KEY not provided, skipping anthropic fallback');
+            loggers.llm.warn('ANTHROPIC_API_KEY not provided, skipping anthropic fallback');
             continue;
           }
           break;
@@ -91,7 +92,7 @@ export class LLMAdapterFactory {
         case 'gemini':
           apiKey = process.env.GEMINI_API_KEY ?? '';
           if (!apiKey) {
-            console.warn('GEMINI_API_KEY not provided, skipping gemini fallback');
+            loggers.llm.warn('GEMINI_API_KEY not provided, skipping gemini fallback');
             continue;
           }
           break;
@@ -99,13 +100,13 @@ export class LLMAdapterFactory {
         case 'openai':
           apiKey = process.env.OPENAI_API_KEY ?? '';
           if (!apiKey) {
-            console.warn('OPENAI_API_KEY not provided, skipping openai fallback');
+            loggers.llm.warn('OPENAI_API_KEY not provided, skipping openai fallback');
             continue;
           }
           break;
 
         default:
-          console.warn(`Unknown LLM provider: ${provider}`);
+          loggers.llm.warn(`Unknown LLM provider: ${provider}`);
           continue;
       }
 
@@ -113,8 +114,12 @@ export class LLMAdapterFactory {
         provider,
         apiKey,
         model: process.env.LLM_MODEL,
-        maxTokens: process.env.LLM_MAX_TOKENS ? parseInt(process.env.LLM_MAX_TOKENS, 10) : undefined,
-        temperature: process.env.LLM_TEMPERATURE ? parseFloat(process.env.LLM_TEMPERATURE) : undefined,
+        maxTokens: process.env.LLM_MAX_TOKENS
+          ? parseInt(process.env.LLM_MAX_TOKENS, 10)
+          : undefined,
+        temperature: process.env.LLM_TEMPERATURE
+          ? parseFloat(process.env.LLM_TEMPERATURE)
+          : undefined,
       });
 
       adapters.push({ name: provider, adapter });

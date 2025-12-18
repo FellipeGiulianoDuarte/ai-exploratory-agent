@@ -115,9 +115,7 @@ describe('PlaywrightBrowserAdapter', () => {
     });
 
     it('should retry on failure', async () => {
-      mockPage.goto
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce(null);
+      mockPage.goto.mockRejectedValueOnce(new Error('Network error')).mockResolvedValueOnce(null);
 
       const result = await adapter.navigate('https://example.com');
 
@@ -150,10 +148,13 @@ describe('PlaywrightBrowserAdapter', () => {
     it('should pass click options', async () => {
       await adapter.click('#button', { delay: 100, force: true });
 
-      expect(mockPage.click).toHaveBeenCalledWith('#button', expect.objectContaining({
-        delay: 100,
-        force: true,
-      }));
+      expect(mockPage.click).toHaveBeenCalledWith(
+        '#button',
+        expect.objectContaining({
+          delay: 100,
+          force: true,
+        })
+      );
     });
   });
 
@@ -218,9 +219,11 @@ describe('PlaywrightBrowserAdapter', () => {
     it('should use fullPage option', async () => {
       await adapter.screenshot({ fullPage: true });
 
-      expect(mockPage.screenshot).toHaveBeenCalledWith(expect.objectContaining({
-        fullPage: true,
-      }));
+      expect(mockPage.screenshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fullPage: true,
+        })
+      );
     });
   });
 
@@ -246,7 +249,7 @@ describe('PlaywrightBrowserAdapter', () => {
       mockPage.evaluate
         .mockResolvedValueOnce([]) // interactive elements (called first in Promise.all sequence)
         .mockResolvedValueOnce('Page content'); // visibleText
-        
+
       const state = await adapter.extractPageState();
 
       expect(state.url).toBe('https://example.com/page');

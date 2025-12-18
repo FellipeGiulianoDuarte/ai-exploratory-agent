@@ -23,16 +23,19 @@ describe('Finding', () => {
     });
 
     it('should create a finding with custom ID', () => {
-      const finding = Finding.create({
-        sessionId: 'session-1',
-        type: 'console_error',
-        severity: 'high',
-        title: 'Console error',
-        description: 'Error in console',
-        pageUrl: 'https://example.com',
-        pageTitle: 'Page',
-        stepNumber: 1,
-      }, 'custom-id');
+      const finding = Finding.create(
+        {
+          sessionId: 'session-1',
+          type: 'console_error',
+          severity: 'high',
+          title: 'Console error',
+          description: 'Error in console',
+          pageUrl: 'https://example.com',
+          pageTitle: 'Page',
+          stepNumber: 1,
+        },
+        'custom-id'
+      );
 
       expect(finding.id).toBe('custom-id');
     });
@@ -283,17 +286,20 @@ describe('Finding', () => {
 
   describe('toJSON', () => {
     it('should serialize finding to JSON', () => {
-      const finding = Finding.create({
-        sessionId: 'session-1',
-        type: 'network_error',
-        severity: 'medium',
-        title: 'API Error',
-        description: 'API returned 500',
-        pageUrl: 'https://example.com/api',
-        pageTitle: 'API Page',
-        stepNumber: 7,
-        metadata: { statusCode: 500 },
-      }, 'test-id');
+      const finding = Finding.create(
+        {
+          sessionId: 'session-1',
+          type: 'network_error',
+          severity: 'medium',
+          title: 'API Error',
+          description: 'API returned 500',
+          pageUrl: 'https://example.com/api',
+          pageTitle: 'API Page',
+          stepNumber: 7,
+          metadata: { statusCode: 500 },
+        },
+        'test-id'
+      );
 
       const json = finding.toJSON();
 

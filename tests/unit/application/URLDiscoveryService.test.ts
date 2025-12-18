@@ -234,17 +234,17 @@ describe('URLDiscoveryService - Priority System', () => {
       service.setBaseUrl('https://example.com');
 
       (mockBrowser.evaluate as jest.Mock).mockResolvedValueOnce([
-        { href: 'https://example.com/blog', text: 'Blog' },              // 85
-        { href: 'https://example.com/faq', text: 'FAQ' },                // 80
-        { href: 'https://example.com/about', text: 'About' },            // 75
-        { href: 'https://example.com/contact', text: 'Contact' },        // 65
-        { href: 'https://example.com/random', text: 'Random' },          // 50
-        { href: 'https://example.com/profile', text: 'Profile' },        // 45
-        { href: 'https://example.com/cart', text: 'Cart' },              // 40
-        { href: 'https://example.com/products', text: 'Products' },      // 35
-        { href: 'https://example.com/', text: 'Home' },                  // 25
-        { href: 'https://example.com/login', text: 'Login' },            // 15
-        { href: 'https://example.com/signup', text: 'Sign Up' },         // 5
+        { href: 'https://example.com/blog', text: 'Blog' }, // 85
+        { href: 'https://example.com/faq', text: 'FAQ' }, // 80
+        { href: 'https://example.com/about', text: 'About' }, // 75
+        { href: 'https://example.com/contact', text: 'Contact' }, // 65
+        { href: 'https://example.com/random', text: 'Random' }, // 50
+        { href: 'https://example.com/profile', text: 'Profile' }, // 45
+        { href: 'https://example.com/cart', text: 'Cart' }, // 40
+        { href: 'https://example.com/products', text: 'Products' }, // 35
+        { href: 'https://example.com/', text: 'Home' }, // 25
+        { href: 'https://example.com/login', text: 'Login' }, // 15
+        { href: 'https://example.com/signup', text: 'Sign Up' }, // 5
       ]);
 
       await service.scanPage(mockBrowser, 'https://example.com/start');
@@ -257,8 +257,8 @@ describe('URLDiscoveryService - Priority System', () => {
       }
 
       // Verify specific ordering for key pages
-      expect(unvisited[0].normalizedUrl).toContain('/signup');    // 5
-      expect(unvisited[1].normalizedUrl).toContain('/login');     // 15
+      expect(unvisited[0].normalizedUrl).toContain('/signup'); // 5
+      expect(unvisited[1].normalizedUrl).toContain('/login'); // 15
       expect(unvisited[2].normalizedUrl).toBe('https://example.com/'); // 25
 
       // Contact should come before About
@@ -307,8 +307,8 @@ describe('URLDiscoveryService - Priority System', () => {
       const unvisited = service.getUnvisitedURLs();
 
       expect(unvisited).toHaveLength(2);
-      expect(unvisited[0].normalizedUrl).toContain('/login');  // Priority 15
-      expect(unvisited[1].normalizedUrl).toContain('/about');  // Priority 75
+      expect(unvisited[0].normalizedUrl).toContain('/login'); // Priority 15
+      expect(unvisited[1].normalizedUrl).toContain('/about'); // Priority 75
     });
   });
 

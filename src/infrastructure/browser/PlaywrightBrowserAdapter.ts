@@ -147,7 +147,7 @@ export class PlaywrightBrowserAdapter implements BrowserPort {
         };
       } catch (error) {
         lastError = error as Error;
-        
+
         if (attempt < this.config.maxRetries) {
           const delay = this.config.retryBaseDelay * Math.pow(2, attempt - 1);
           await this.sleep(delay);
@@ -184,7 +184,7 @@ export class PlaywrightBrowserAdapter implements BrowserPort {
    */
   async navigate(url: string, options: NavigateOptions = {}): Promise<ActionResult> {
     const page = this.ensurePage();
-    
+
     // Clear errors before navigation
     this.consoleErrors = [];
     this.networkErrors = [];
@@ -387,7 +387,7 @@ export class PlaywrightBrowserAdapter implements BrowserPort {
 
           const element = el as HTMLElement;
           const rect = element.getBoundingClientRect();
-          
+
           // Check visibility
           const style = window.getComputedStyle(element);
           const isVisible =
@@ -407,16 +407,16 @@ export class PlaywrightBrowserAdapter implements BrowserPort {
           // Determine element type
           let type = 'other';
           const tagName = element.tagName.toLowerCase();
-          
+
           if (tagName === 'a') type = 'link';
-          else if (tagName === 'button' || element.getAttribute('role') === 'button') type = 'button';
+          else if (tagName === 'button' || element.getAttribute('role') === 'button')
+            type = 'button';
           else if (tagName === 'input') {
             const inputType = (element as HTMLInputElement).type;
             if (inputType === 'checkbox') type = 'checkbox';
             else if (inputType === 'radio') type = 'radio';
             else type = 'input';
-          }
-          else if (tagName === 'select') type = 'select';
+          } else if (tagName === 'select') type = 'select';
           else if (tagName === 'textarea') type = 'textarea';
           else if (tagName === 'img') type = 'image';
           else if (tagName === 'form') type = 'form';

@@ -1,7 +1,12 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { FindingsRepository } from '../../application/ports/FindingsRepository';
-import { Finding, FindingType, FindingSeverity, FindingProps } from '../../domain/exploration/Finding';
+import {
+  Finding,
+  FindingType,
+  FindingSeverity,
+  FindingProps,
+} from '../../domain/exploration/Finding';
 
 /**
  * File-based implementation of FindingsRepository.
@@ -61,7 +66,7 @@ export class FileBasedFindingsRepository implements FindingsRepository {
 
     // Search all session directories
     await this.ensureDir();
-    
+
     try {
       const sessions = await fs.readdir(this.baseDir);
       for (const sessionId of sessions) {
@@ -107,12 +112,12 @@ export class FileBasedFindingsRepository implements FindingsRepository {
 
   async findByType(sessionId: string, type: FindingType): Promise<Finding[]> {
     const findings = await this.findBySessionId(sessionId);
-    return findings.filter((f) => f.type === type);
+    return findings.filter(f => f.type === type);
   }
 
   async findBySeverity(sessionId: string, severity: FindingSeverity): Promise<Finding[]> {
     const findings = await this.findBySessionId(sessionId);
-    return findings.filter((f) => f.severity === severity);
+    return findings.filter(f => f.severity === severity);
   }
 
   async findAll(): Promise<Finding[]> {
@@ -154,7 +159,7 @@ export class FileBasedFindingsRepository implements FindingsRepository {
 
     try {
       await fs.rm(sessionDir, { recursive: true });
-      findings.forEach((f) => this.cache.delete(f.id));
+      findings.forEach(f => this.cache.delete(f.id));
       return findings.length;
     } catch {
       return 0;

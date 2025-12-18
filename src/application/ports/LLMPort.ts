@@ -1,85 +1,20 @@
 import { ToolDefinition } from '../../domain/tools/Tool';
 import { PersonaAnalysis } from '../../domain/personas';
+import { PageContext } from '../../domain/exploration/PageContext';
+// Re-export domain types for backward compatibility
+export {
+  ActionType,
+  ActionDecision,
+  ExplorationHistoryEntry,
+} from '../../domain/exploration/ActionTypes';
+export { PageContext } from '../../domain/exploration/PageContext';
+import { ActionDecision, ExplorationHistoryEntry } from '../../domain/exploration/ActionTypes';
 
 /**
- * Type of action the agent can take.
+ * LLMPageContext is an alias for PageContext from domain layer.
+ * Kept for backward compatibility.
  */
-export type ActionType = 'navigate' | 'click' | 'fill' | 'select' | 'hover' | 'scroll' | 'back' | 'refresh' | 'tool' | 'done';
-
-/**
- * An action decision made by the LLM.
- */
-export interface ActionDecision {
-  /** Type of action to perform */
-  action: ActionType;
-  /** Target element selector (for click, fill, etc.) */
-  selector?: string;
-  /** Value to use (for fill, select, navigate) */
-  value?: string;
-  /** Tool name to invoke (for tool action) */
-  toolName?: string;
-  /** Tool parameters (for tool action) */
-  toolParams?: Record<string, unknown>;
-  /** Reasoning for why this action was chosen */
-  reasoning: string;
-  /** Confidence score (0-1) */
-  confidence: number;
-  /** Factors affecting confidence */
-  confidenceFactors?: string[];
-  /** Alternative actions considered */
-  alternatives?: Array<{
-    action: ActionType;
-    selector?: string;
-    reasoning: string;
-  }>;
-  /** Hypothesis being tested */
-  hypothesis?: string;
-  /** Expected outcome of this action */
-  expectedOutcome?: string;
-  /** Issues/bugs observed on the current page */
-  observedIssues?: string[];
-}
-
-/**
- * Simplified page state for LLM context.
- */
-export interface LLMPageContext {
-  /** Current URL */
-  url: string;
-  /** Page title */
-  title: string;
-  /** Visible text content (truncated) */
-  visibleText: string;
-  /** Interactive elements summary */
-  elements: Array<{
-    selector: string;
-    type: string;
-    text: string;
-    isVisible: boolean;
-  }>;
-  /** Console errors if any */
-  consoleErrors: string[];
-  /** Network errors if any */
-  networkErrors: string[];
-}
-
-/**
- * History entry for exploration context.
- */
-export interface ExplorationHistoryEntry {
-  /** Step number */
-  step: number;
-  /** Action taken */
-  action: ActionDecision;
-  /** Whether action succeeded */
-  success: boolean;
-  /** Error if action failed */
-  error?: string;
-  /** URL after action */
-  resultingUrl: string;
-  /** Findings discovered */
-  findings?: string[];
-}
+export type LLMPageContext = PageContext;
 
 /**
  * Request to the LLM for deciding next action.
@@ -172,10 +107,7 @@ export interface LLMPort {
   /**
    * Generate a summary of exploration session.
    */
-  generateSummary(
-    history: ExplorationHistoryEntry[],
-    findings: string[]
-  ): Promise<string>;
+  generateSummary(history: ExplorationHistoryEntry[], findings: string[]): Promise<string>;
 
   /**
    * Check if the LLM is available and configured.

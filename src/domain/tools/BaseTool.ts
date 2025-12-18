@@ -1,18 +1,13 @@
-import {
-  Tool,
-  ToolContext,
-  ToolResult,
-  ToolDefinition,
-  ToolParameterSchema,
-} from './Tool';
+import { Tool, ToolContext, ToolResult, ToolDefinition, ToolParameterSchema } from './Tool';
 
 /**
  * Abstract base class for tools that provides common functionality.
  * All custom tools should extend this class.
  */
-export abstract class BaseTool<TParams = unknown, TResult = unknown>
-  implements Tool<TParams, TResult>
-{
+export abstract class BaseTool<TParams = unknown, TResult = unknown> implements Tool<
+  TParams,
+  TResult
+> {
   abstract readonly name: string;
   abstract readonly description: string;
 
@@ -26,10 +21,7 @@ export abstract class BaseTool<TParams = unknown, TResult = unknown>
    * The core execution logic for the tool.
    * Override in subclasses to implement tool functionality.
    */
-  protected abstract executeInternal(
-    params: TParams,
-    context: ToolContext
-  ): Promise<TResult>;
+  protected abstract executeInternal(params: TParams, context: ToolContext): Promise<TResult>;
 
   /**
    * Get the tool definition for LLM function calling.

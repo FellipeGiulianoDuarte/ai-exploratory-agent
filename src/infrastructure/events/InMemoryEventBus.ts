@@ -1,4 +1,5 @@
 import { EventBus, DomainEvent, EventHandler } from '../../domain/events/DomainEvent';
+import { loggers } from '../logging';
 
 /**
  * In-memory implementation of EventBus.
@@ -27,11 +28,11 @@ export class InMemoryEventBus implements EventBus {
     }
 
     // Execute all handlers (in parallel)
-    const handlerPromises = Array.from(typeHandlers).map(async (handler) => {
+    const handlerPromises = Array.from(typeHandlers).map(async handler => {
       try {
         await handler(event);
       } catch (error) {
-        console.error(`Error in event handler for ${event.type}:`, error);
+        loggers.event.error(`Error in event handler for ${event.type}: ${error}`);
       }
     });
 

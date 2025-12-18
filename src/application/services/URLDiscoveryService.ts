@@ -1,6 +1,6 @@
 /**
  * URL Discovery Service
- * 
+ *
  * Scans pages for discoverable URLs from <a href> elements,
  * normalizes them, categorizes them, and maintains a queue
  * of URLs to visit.
@@ -8,14 +8,7 @@
 
 import { BrowserPort } from '../ports/BrowserPort';
 
-export type URLCategory = 
-  | 'auth' 
-  | 'user' 
-  | 'product' 
-  | 'cart' 
-  | 'admin' 
-  | 'info' 
-  | 'other';
+export type URLCategory = 'auth' | 'user' | 'product' | 'cart' | 'admin' | 'info' | 'other';
 
 export interface DiscoveredURL {
   url: string;
@@ -54,21 +47,11 @@ const CATEGORY_PATTERNS: Record<URLCategory, RegExp[]> = {
   auth: [
     /\/(auth|login|signin|sign-in|logout|signout|sign-out|register|signup|sign-up|forgot|reset|password)/i,
   ],
-  user: [
-    /\/(profile|account|settings|dashboard|my-|user|preferences)/i,
-  ],
-  product: [
-    /\/(product|item|category|categories|catalog|shop|store|browse)/i,
-  ],
-  cart: [
-    /\/(cart|basket|checkout|payment|order)/i,
-  ],
-  admin: [
-    /\/(admin|manage|management|cms|backend|control)/i,
-  ],
-  info: [
-    /\/(about|contact|faq|help|support|terms|privacy|policy|blog|news)/i,
-  ],
+  user: [/\/(profile|account|settings|dashboard|my-|user|preferences)/i],
+  product: [/\/(product|item|category|categories|catalog|shop|store|browse)/i],
+  cart: [/\/(cart|basket|checkout|payment|order)/i],
+  admin: [/\/(admin|manage|management|cms|backend|control)/i],
+  info: [/\/(about|contact|faq|help|support|terms|privacy|policy|blog|news)/i],
   other: [],
 };
 
@@ -83,35 +66,22 @@ const CATEGORY_PATTERNS: Record<URLCategory, RegExp[]> = {
 // 81-90: Low priority pages (terms, privacy, etc.)
 // 91-100: Very low priority (blog, news, etc.)
 
-const SIGNUP_PATTERNS = [
-  /\/(register|signup|sign-up)/i,
-];
+const SIGNUP_PATTERNS = [/\/(register|signup|sign-up)/i];
 
-const LOGIN_PATTERNS = [
-  /\/(login|signin|sign-in)/i,
-];
+const LOGIN_PATTERNS = [/\/(login|signin|sign-in)/i];
 
 const HOME_PATTERNS = [
-  /^https?:\/\/[^\/]+\/?$/i,        // Matches root URL (with or without trailing slash)
-  /^https?:\/\/[^\/]+\/#\/?$/i,     // Matches SPA root routes: https://example.com/#/ or https://example.com/#
+  /^https?:\/\/[^\/]+\/?$/i, // Matches root URL (with or without trailing slash)
+  /^https?:\/\/[^\/]+\/#\/?$/i, // Matches SPA root routes: https://example.com/#/ or https://example.com/#
 ];
 
-const CONTACT_PATTERNS = [
-  /\/contact/i,
-];
+const CONTACT_PATTERNS = [/\/contact/i];
 
-const ABOUT_PATTERNS = [
-  /\/about/i,
-];
+const ABOUT_PATTERNS = [/\/about/i];
 
-const INFO_LOW_PRIORITY_PATTERNS = [
-  /\/(faq|help|support)/i,
-];
+const INFO_LOW_PRIORITY_PATTERNS = [/\/(faq|help|support)/i];
 
-const VERY_LOW_PRIORITY_PATTERNS = [
-  /\/(terms|privacy|policy|legal)/i,
-  /\/(blog|news|press)/i,
-];
+const VERY_LOW_PRIORITY_PATTERNS = [/\/(terms|privacy|policy|legal)/i, /\/(blog|news|press)/i];
 
 // Default exclusion patterns
 const DEFAULT_EXCLUDE_PATTERNS = [
@@ -169,7 +139,7 @@ export class URLDiscoveryService {
     this.markVisited(currentUrl);
 
     // Extract all links from page using evaluate
-    const links = await browser.evaluate<Array<{href: string; text: string}>>(() => {
+    const links = await browser.evaluate<Array<{ href: string; text: string }>>(() => {
       const anchors = document.querySelectorAll('a[href]');
       return Array.from(anchors).map(a => ({
         href: (a as HTMLAnchorElement).href,
@@ -246,29 +216,29 @@ export class URLDiscoveryService {
   private normalizeUrl(url: string): string | null {
     try {
       const parsed = new URL(url, this.baseUrl);
-      
+
       // For SPA hash routing (e.g., /#/products, #/contact),
       // preserve the hash as it represents the actual route
       // Only remove simple anchors like #top, #section-1, etc.
       const hash = parsed.hash;
       const isSpaRoute = hash.startsWith('#/') || hash.startsWith('#!/');
-      
+
       if (!isSpaRoute) {
         // Remove simple anchor fragments
         parsed.hash = '';
       }
-      
+
       // Remove trailing slash (but not for root)
       let normalized = parsed.href;
       if (normalized.endsWith('/') && parsed.pathname !== '/') {
         normalized = normalized.slice(0, -1);
       }
-      
+
       // For SPA routes, also normalize trailing slash after hash
       if (isSpaRoute && normalized.endsWith('/') && !normalized.endsWith('#/')) {
         normalized = normalized.slice(0, -1);
       }
-      
+
       return normalized;
     } catch {
       return null;
@@ -315,7 +285,7 @@ export class URLDiscoveryService {
   private categorizeUrl(url: string): URLCategory {
     for (const [category, patterns] of Object.entries(CATEGORY_PATTERNS)) {
       if (category === 'other') continue;
-      
+
       for (const pattern of patterns) {
         if (pattern.test(url)) {
           return category as URLCategory;
@@ -412,7 +382,7 @@ export class URLDiscoveryService {
     const normalized = this.normalizeUrl(url);
     if (normalized) {
       this.visitedUrls.add(normalized);
-      
+
       const discovered = this.discoveredUrls.get(normalized);
       if (discovered) {
         discovered.visited = true;
@@ -432,8 +402,9 @@ export class URLDiscoveryService {
    * Get all unvisited URLs, sorted by priority score (lower score = higher priority)
    */
   getUnvisitedURLs(): DiscoveredURL[] {
-    const unvisited = Array.from(this.discoveredUrls.values())
-      .filter(u => !u.visited && !this.visitedUrls.has(u.normalizedUrl));
+    const unvisited = Array.from(this.discoveredUrls.values()).filter(
+      u => !u.visited && !this.visitedUrls.has(u.normalizedUrl)
+    );
 
     // Sort by priority score (ascending order: lower score = higher priority)
     return unvisited.sort((a, b) => {
@@ -450,8 +421,7 @@ export class URLDiscoveryService {
    * Get URLs by category
    */
   getURLsByCategory(category: URLCategory): DiscoveredURL[] {
-    return Array.from(this.discoveredUrls.values())
-      .filter(u => u.category === category);
+    return Array.from(this.discoveredUrls.values()).filter(u => u.category === category);
   }
 
   /**
@@ -459,7 +429,7 @@ export class URLDiscoveryService {
    */
   getSiteMap(): SiteMap {
     const urls = Array.from(this.discoveredUrls.values());
-    
+
     const urlsByCategory: Record<URLCategory, DiscoveredURL[]> = {
       auth: [],
       user: [],

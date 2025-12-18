@@ -80,19 +80,8 @@ export class ConsoleErrorAnalyzerTool extends BaseTool<
       /undefined.*is.*not/i,
       /null.*is.*not/i,
     ],
-    medium: [
-      /warning/i,
-      /deprecated/i,
-      /404/i,
-      /not.*found/i,
-      /missing/i,
-    ],
-    low: [
-      /info/i,
-      /debug/i,
-      /notice/i,
-      /log/i,
-    ],
+    medium: [/warning/i, /deprecated/i, /404/i, /not.*found/i, /missing/i],
+    low: [/info/i, /debug/i, /notice/i, /log/i],
   };
 
   // Error category patterns
@@ -103,7 +92,7 @@ export class ConsoleErrorAnalyzerTool extends BaseTool<
     'JavaScript Error': [/undefined/i, /null/i, /is not a function/i, /cannot read/i, /syntax/i],
     'Resource Loading': [/404/i, /not found/i, /failed to load/i, /missing/i],
     'Deprecation Warning': [/deprecated/i, /legacy/i],
-    'Performance': [/slow/i, /performance/i, /timeout/i, /memory/i],
+    Performance: [/slow/i, /performance/i, /timeout/i, /memory/i],
   };
 
   protected getParameterSchema(): Record<string, ToolParameterSchema> {

@@ -1,9 +1,10 @@
-import { LLMPageContext, ActionDecision } from '../../application/ports/LLMPort';
+import { PageContext as LLMPageContext } from '../exploration/PageContext';
+import { ActionDecision } from '../exploration/ActionTypes';
 import { TestingPersona, PersonaSuggestion } from './TestingPersona';
 
 /**
  * The Validation Agent - "Is this what we expect?"
- * 
+ *
  * Focuses on verifying that the page displays correctly, looking for
  * visual errors, incorrect data, error messages, and unexpected states.
  */
@@ -125,11 +126,12 @@ export class ValidationPersona implements TestingPersona {
     }
 
     // Check empty states
-    const emptyContainers = context.elements.filter(el =>
-      el.selector.includes('list') ||
-      el.selector.includes('grid') ||
-      el.selector.includes('container') ||
-      el.selector.includes('results')
+    const emptyContainers = context.elements.filter(
+      el =>
+        el.selector.includes('list') ||
+        el.selector.includes('grid') ||
+        el.selector.includes('container') ||
+        el.selector.includes('results')
     );
 
     if (emptyContainers.length > 0 && (!context.visibleText || context.visibleText.length < 100)) {
@@ -148,7 +150,7 @@ export class ValidationPersona implements TestingPersona {
     // Verify forms have labels
     const inputs = context.elements.filter(el => el.type === 'input');
     const inputsWithoutLabels = inputs.filter(el => !el.text);
-    
+
     if (inputsWithoutLabels.length > 0) {
       suggestions.push({
         action: {

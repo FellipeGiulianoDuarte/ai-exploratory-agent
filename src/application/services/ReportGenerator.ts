@@ -190,7 +190,9 @@ No issues were found during the exploration.`;
 
     // Medium findings
     if (bySeverity.has('medium')) {
-      sections.push(this.buildFindingsTable('🟡 Medium Severity Issues', bySeverity.get('medium')!));
+      sections.push(
+        this.buildFindingsTable('🟡 Medium Severity Issues', bySeverity.get('medium')!)
+      );
     }
 
     // Low findings
@@ -247,10 +249,13 @@ ${finding.evidence.length > 0 ? `**Evidence:**\n${finding.evidence.map(e => `- $
   /**
    * Build coverage section.
    */
-  private buildCoverageSection(stats: ExplorationStats, history: ExplorationHistoryEntry[]): string {
+  private buildCoverageSection(
+    stats: ExplorationStats,
+    history: ExplorationHistoryEntry[]
+  ): string {
     // Analyze action types
     const actionTypes = this.countActionTypes(history);
-    
+
     return `## Coverage Summary
 
 ### Pages Visited (${stats.pagesVisited.length})
@@ -276,8 +281,11 @@ ${this.identifyUncoveredAreas(stats, history)}`;
   /**
    * Build methodology section.
    */
-  private buildMethodologySection(stats: ExplorationStats, history: ExplorationHistoryEntry[]): string {
-    const successRate = history.filter(h => h.success).length / history.length * 100;
+  private buildMethodologySection(
+    stats: ExplorationStats,
+    history: ExplorationHistoryEntry[]
+  ): string {
+    const successRate = (history.filter(h => h.success).length / history.length) * 100;
     const toolInvocations = history.filter(h => h.action.action === 'tool').length;
 
     return `## Methodology
@@ -314,10 +322,10 @@ The exploration utilized multiple testing personas:
    */
   private buildTokenUsageSection(stats: ExplorationStats): string {
     const { promptTokens, completionTokens, totalTokens } = stats.tokenUsage;
-    
+
     // Estimate cost (approximate pricing for GPT-4o-mini)
     const promptCost = (promptTokens / 1_000_000) * 0.15;
-    const completionCost = (completionTokens / 1_000_000) * 0.60;
+    const completionCost = (completionTokens / 1_000_000) * 0.6;
     const totalCost = promptCost + completionCost;
 
     return `## Resource Usage
@@ -348,13 +356,15 @@ The exploration utilized multiple testing personas:
 
 | Step | Action | Target | Result | URL |
 |------|--------|--------|--------|-----|
-${recentHistory.map(h => {
-  const target = h.action.selector || h.action.value || h.action.toolName || '-';
-  const shortTarget = target.length > 30 ? target.substring(0, 27) + '...' : target;
-  const result = h.success ? '✅' : '❌';
-  const shortUrl = this.shortenUrl(h.resultingUrl);
-  return `| ${h.step} | ${h.action.action} | ${shortTarget} | ${result} | ${shortUrl} |`;
-}).join('\n')}
+${recentHistory
+  .map(h => {
+    const target = h.action.selector || h.action.value || h.action.toolName || '-';
+    const shortTarget = target.length > 30 ? target.substring(0, 27) + '...' : target;
+    const result = h.success ? '✅' : '❌';
+    const shortUrl = this.shortenUrl(h.resultingUrl);
+    return `| ${h.step} | ${h.action.action} | ${shortTarget} | ${result} | ${shortUrl} |`;
+  })
+  .join('\n')}
 
 </details>
 
@@ -375,38 +385,38 @@ ${recentHistory.map(h => {
 
   private formatStatus(reason: string): string {
     const statusMap: Record<string, string> = {
-      'completed': '✅ Completed Successfully',
-      'max_steps_reached': '⏹️ Max Steps Reached',
-      'stopped_by_user': '🛑 Stopped by User',
-      'error': '❌ Error',
+      completed: '✅ Completed Successfully',
+      max_steps_reached: '⏹️ Max Steps Reached',
+      stopped_by_user: '🛑 Stopped by User',
+      error: '❌ Error',
     };
     return statusMap[reason] || reason;
   }
 
   private formatSeverity(severity: FindingSeverity): string {
     const severityMap: Record<FindingSeverity, string> = {
-      'critical': '🔴 Critical',
-      'high': '🟠 High',
-      'medium': '🟡 Medium',
-      'low': '🟢 Low',
+      critical: '🔴 Critical',
+      high: '🟠 High',
+      medium: '🟡 Medium',
+      low: '🟢 Low',
     };
     return severityMap[severity];
   }
 
   private formatType(type: FindingType): string {
     const typeMap: Record<FindingType, string> = {
-      'broken_image': 'Broken Image',
-      'console_error': 'Console Error',
-      'network_error': 'Network Error',
-      'accessibility': 'Accessibility',
-      'usability': 'Usability',
-      'functional': 'Functional',
-      'performance': 'Performance',
-      'security': 'Security',
-      'observed_bug': 'Bug',
-      'text_issue': 'Text Issue',
-      'ui_issue': 'UI Issue',
-      'other': 'Other',
+      broken_image: 'Broken Image',
+      console_error: 'Console Error',
+      network_error: 'Network Error',
+      accessibility: 'Accessibility',
+      usability: 'Usability',
+      functional: 'Functional',
+      performance: 'Performance',
+      security: 'Security',
+      observed_bug: 'Bug',
+      text_issue: 'Text Issue',
+      ui_issue: 'UI Issue',
+      other: 'Other',
     };
     return typeMap[type] || type;
   }
@@ -445,9 +455,12 @@ ${recentHistory.map(h => {
     return counts;
   }
 
-  private identifyUncoveredAreas(stats: ExplorationStats, history: ExplorationHistoryEntry[]): string {
+  private identifyUncoveredAreas(
+    stats: ExplorationStats,
+    history: ExplorationHistoryEntry[]
+  ): string {
     const suggestions: string[] = [];
-    
+
     // Check for common areas that might be missed
     const visitedPaths = stats.pagesVisited.map(url => {
       try {
@@ -457,9 +470,18 @@ ${recentHistory.map(h => {
       }
     });
 
-    const commonPaths = ['/checkout', '/cart', '/profile', '/settings', '/admin', '/search', '/help', '/faq'];
+    const commonPaths = [
+      '/checkout',
+      '/cart',
+      '/profile',
+      '/settings',
+      '/admin',
+      '/search',
+      '/help',
+      '/faq',
+    ];
     const missingPaths = commonPaths.filter(p => !visitedPaths.some(v => v.includes(p.slice(1))));
-    
+
     if (missingPaths.length > 0) {
       suggestions.push(`- **Unvisited pages:** ${missingPaths.join(', ')}`);
     }

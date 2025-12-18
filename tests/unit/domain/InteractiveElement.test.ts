@@ -1,7 +1,13 @@
-import { InteractiveElement, ElementType, InteractiveElementProps } from '../../../src/domain/browser/InteractiveElement';
+import {
+  InteractiveElement,
+  ElementType,
+  InteractiveElementProps,
+} from '../../../src/domain/browser/InteractiveElement';
 
 describe('InteractiveElement', () => {
-  const createDefaultProps = (overrides: Partial<InteractiveElementProps> = {}): InteractiveElementProps => ({
+  const createDefaultProps = (
+    overrides: Partial<InteractiveElementProps> = {}
+  ): InteractiveElementProps => ({
     selector: '#test-button',
     type: 'button' as ElementType,
     text: 'Click Me',
@@ -31,8 +37,16 @@ describe('InteractiveElement', () => {
 
     it('should create an InteractiveElement with all element types', () => {
       const elementTypes: ElementType[] = [
-        'link', 'button', 'input', 'select', 'textarea',
-        'checkbox', 'radio', 'image', 'form', 'other',
+        'link',
+        'button',
+        'input',
+        'select',
+        'textarea',
+        'checkbox',
+        'radio',
+        'image',
+        'form',
+        'other',
       ];
 
       elementTypes.forEach(type => {

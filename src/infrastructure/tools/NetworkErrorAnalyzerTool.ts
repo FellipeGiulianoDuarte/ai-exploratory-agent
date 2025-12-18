@@ -262,7 +262,9 @@ export class NetworkErrorAnalyzerTool extends BaseTool<
     }
 
     // Add top errors
-    const criticalErrors = categorized.filter(e => e.severity === 'critical' || e.severity === 'high');
+    const criticalErrors = categorized.filter(
+      e => e.severity === 'critical' || e.severity === 'high'
+    );
     if (criticalErrors.length > 0) {
       lines.push('\nCritical/High severity errors:');
       for (const error of criticalErrors.slice(0, 3)) {

@@ -8,7 +8,13 @@ import {
   ActionDecision,
   ExplorationHistoryEntry,
 } from '../../application/ports/LLMPort';
-import { SYSTEM_PROMPT, buildDecisionPrompt, buildDecisionPromptWithPersonas, FINDING_ANALYSIS_PROMPT, SUMMARY_PROMPT } from './prompts';
+import {
+  SYSTEM_PROMPT,
+  buildDecisionPrompt,
+  buildDecisionPromptWithPersonas,
+  FINDING_ANALYSIS_PROMPT,
+  SUMMARY_PROMPT,
+} from './prompts';
 
 /**
  * Configuration for GeminiAdapter.
@@ -29,7 +35,7 @@ export class GeminiAdapter implements LLMPort {
   constructor(config: GeminiAdapterConfig) {
     this.client = new GoogleGenerativeAI(config.apiKey);
     this.modelName = config.model || 'gemini-2.5-flash-lite';
-    this.generativeModel = this.client.getGenerativeModel({ 
+    this.generativeModel = this.client.getGenerativeModel({
       model: this.modelName,
       systemInstruction: SYSTEM_PROMPT,
     });
@@ -50,24 +56,25 @@ export class GeminiAdapter implements LLMPort {
     const startTime = Date.now();
 
     // Build the prompt - use persona-enhanced version if personas are provided
-    const prompt = request.personaAnalysis && request.personaAnalysis.length > 0
-      ? buildDecisionPromptWithPersonas(
-          request.pageContext,
-          request.history,
-          request.tools,
-          request.personaAnalysis,
-          request.objective,
-          request.urlQueueContext,
-          request.reportedBugsSummary
-        )
-      : buildDecisionPrompt(
-          request.pageContext,
-          request.history,
-          request.tools,
-          request.objective,
-          request.urlQueueContext,
-          request.reportedBugsSummary
-        );
+    const prompt =
+      request.personaAnalysis && request.personaAnalysis.length > 0
+        ? buildDecisionPromptWithPersonas(
+            request.pageContext,
+            request.history,
+            request.tools,
+            request.personaAnalysis,
+            request.objective,
+            request.urlQueueContext,
+            request.reportedBugsSummary
+          )
+        : buildDecisionPrompt(
+            request.pageContext,
+            request.history,
+            request.tools,
+            request.objective,
+            request.urlQueueContext,
+            request.reportedBugsSummary
+          );
 
     try {
       // Generate content
@@ -87,7 +94,11 @@ export class GeminiAdapter implements LLMPort {
       const decision = this.parseDecision(text);
 
       // Get token usage
-      const usage = response.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0, totalTokenCount: 0 };
+      const usage = response.usageMetadata || {
+        promptTokenCount: 0,
+        candidatesTokenCount: 0,
+        totalTokenCount: 0,
+      };
 
       return {
         decision,
@@ -100,17 +111,21 @@ export class GeminiAdapter implements LLMPort {
         latency: Date.now() - startTime,
       };
     } catch (error) {
-      throw new Error(`Gemini API error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Gemini API error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
-  async analyzeFinding(finding: string, context: LLMPageContext): Promise<{
+  async analyzeFinding(
+    finding: string,
+    context: LLMPageContext
+  ): Promise<{
     severity: 'critical' | 'high' | 'medium' | 'low';
     description: string;
     recommendation: string;
   }> {
-    const prompt = FINDING_ANALYSIS_PROMPT
-      .replace('{{FINDING}}', finding)
+    const prompt = FINDING_ANALYSIS_PROMPT.replace('{{FINDING}}', finding)
       .replace('{{PAGE_URL}}', context.url)
       .replace('{{PAGE_TITLE}}', context.title);
 
@@ -161,8 +176,7 @@ export class GeminiAdapter implements LLMPort {
 
     const findingsText = findings.length > 0 ? findings.join('\n') : 'No issues found';
 
-    const prompt = SUMMARY_PROMPT
-      .replace('{{totalSteps}}', String(totalSteps))
+    const prompt = SUMMARY_PROMPT.replace('{{totalSteps}}', String(totalSteps))
       .replace('{{successfulActions}}', String(successfulActions))
       .replace('{{failedActions}}', String(failedActions))
       .replace('{{pagesVisited}}', String(pagesVisited))
@@ -179,7 +193,9 @@ export class GeminiAdapter implements LLMPort {
 
       return result.response.text();
     } catch (error) {
-      throw new Error(`Gemini API error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Gemini API error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -229,7 +245,9 @@ export class GeminiAdapter implements LLMPort {
         observedIssues: parsed.observedIssues,
       };
     } catch (error) {
-      throw new Error(`Failed to parse action decision: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to parse action decision: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }

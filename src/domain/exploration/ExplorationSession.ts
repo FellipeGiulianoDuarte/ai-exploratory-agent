@@ -1,6 +1,6 @@
 import { Entity } from '../shared/Entity';
 import { ExplorationStep } from './ExplorationStep';
-import { ActionDecision, ExplorationHistoryEntry } from '../../application/ports/LLMPort';
+import { ActionDecision, ExplorationHistoryEntry } from './ActionTypes';
 import { EventBus } from '../events/DomainEvent';
 import {
   SessionStartedEvent,
@@ -18,7 +18,11 @@ export type SessionStatus = 'idle' | 'running' | 'paused' | 'completed' | 'stopp
 /**
  * Checkpoint trigger reasons.
  */
-export type CheckpointReason = 'step_count' | 'tool_finding' | 'low_confidence' | 'natural_breakpoint';
+export type CheckpointReason =
+  | 'step_count'
+  | 'tool_finding'
+  | 'low_confidence'
+  | 'natural_breakpoint';
 
 /**
  * Human guidance from checkpoint.
@@ -98,7 +102,7 @@ export class ExplorationSession extends Entity<ExplorationSessionProps> {
   static fromJSON(data: Record<string, unknown>): ExplorationSession {
     const config = data.config as ExplorationSessionConfig;
     const stepsData = data.steps as Array<Record<string, unknown>>;
-    const steps = stepsData.map((stepData) => {
+    const steps = stepsData.map(stepData => {
       // Type-safe conversion for ExplorationStep.fromJSON
       const stepProps = {
         id: stepData.id as string,
@@ -328,8 +332,11 @@ export class ExplorationSession extends Entity<ExplorationSessionProps> {
   /**
    * Stop the exploration session.
    */
-  async stop(reason: 'completed' | 'stopped_by_user' | 'max_steps_reached' | 'error'): Promise<void> {
-    this.props.status = reason === 'stopped_by_user' ? 'stopped' : reason === 'error' ? 'error' : 'completed';
+  async stop(
+    reason: 'completed' | 'stopped_by_user' | 'max_steps_reached' | 'error'
+  ): Promise<void> {
+    this.props.status =
+      reason === 'stopped_by_user' ? 'stopped' : reason === 'error' ? 'error' : 'completed';
     this.props.endedAt = new Date();
     this.props.endReason = reason;
 
@@ -349,7 +356,7 @@ export class ExplorationSession extends Entity<ExplorationSessionProps> {
    * Get exploration history for LLM context.
    */
   getHistoryForLLM(): ExplorationHistoryEntry[] {
-    return this.props.steps.map((step) => ({
+    return this.props.steps.map(step => ({
       step: step.stepNumber,
       action: step.action,
       success: step.success,
@@ -376,8 +383,8 @@ export class ExplorationSession extends Entity<ExplorationSessionProps> {
 
     return {
       totalSteps: this.props.steps.length,
-      successfulSteps: this.props.steps.filter((s) => s.success).length,
-      failedSteps: this.props.steps.filter((s) => !s.success).length,
+      successfulSteps: this.props.steps.filter(s => s.success).length,
+      failedSteps: this.props.steps.filter(s => !s.success).length,
       uniqueUrls: this.props.visitedUrls.size,
       totalFindings: this.props.findingIds.length,
       duration: endTime.getTime() - startTime.getTime(),
@@ -406,7 +413,7 @@ Statistics:
 - Duration: ${Math.round(stats.duration / 1000)}s
 
 Recent Actions:
-${recentSteps.map((s) => s.summarize()).join('\n')}
+${recentSteps.map(s => s.summarize()).join('\n')}
 
 Current URL: ${this.props.currentUrl}`;
 
@@ -420,7 +427,14 @@ Current URL: ${this.props.currentUrl}`;
   /**
    * Publish an event if event bus is set.
    */
-  private async publishEvent(event: SessionStartedEvent | SessionEndedEvent | StepCompletedEvent | CheckpointTriggeredEvent | GuidanceReceivedEvent): Promise<void> {
+  private async publishEvent(
+    event:
+      | SessionStartedEvent
+      | SessionEndedEvent
+      | StepCompletedEvent
+      | CheckpointTriggeredEvent
+      | GuidanceReceivedEvent
+  ): Promise<void> {
     if (this.eventBus) {
       await this.eventBus.publish(event);
     }
@@ -431,7 +445,7 @@ Current URL: ${this.props.currentUrl}`;
       id: this.id,
       config: this.props.config,
       status: this.props.status,
-      steps: this.props.steps.map((s) => s.toJSON()),
+      steps: this.props.steps.map(s => s.toJSON()),
       findingIds: this.props.findingIds,
       visitedUrls: Array.from(this.props.visitedUrls),
       currentUrl: this.props.currentUrl,

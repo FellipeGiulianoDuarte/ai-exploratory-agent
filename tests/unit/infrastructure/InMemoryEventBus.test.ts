@@ -1,4 +1,8 @@
-import { InMemoryEventBus, getDefaultEventBus, resetDefaultEventBus } from '../../../src/infrastructure/events/InMemoryEventBus';
+import {
+  InMemoryEventBus,
+  getDefaultEventBus,
+  resetDefaultEventBus,
+} from '../../../src/infrastructure/events/InMemoryEventBus';
 import { BaseDomainEvent } from '../../../src/domain/events/DomainEvent';
 
 // Test event classes
@@ -43,8 +47,12 @@ describe('InMemoryEventBus', () => {
 
     it('should deliver event to multiple handlers', async () => {
       let count = 0;
-      const handler1 = (): void => { count += 1; };
-      const handler2 = (): void => { count += 10; };
+      const handler1 = (): void => {
+        count += 1;
+      };
+      const handler2 = (): void => {
+        count += 10;
+      };
 
       eventBus.subscribe('TestEvent', handler1);
       eventBus.subscribe('TestEvent', handler2);
@@ -55,7 +63,9 @@ describe('InMemoryEventBus', () => {
 
     it('should not deliver event to wrong type handlers', async () => {
       let called = false;
-      const handler = (): void => { called = true; };
+      const handler = (): void => {
+        called = true;
+      };
 
       eventBus.subscribe('AnotherEvent', handler);
       await eventBus.publish(new TestEvent('test'));
@@ -67,8 +77,12 @@ describe('InMemoryEventBus', () => {
       const testEvents: TestEvent[] = [];
       const anotherEvents: AnotherEvent[] = [];
 
-      eventBus.subscribe('TestEvent', (e: TestEvent): void => { testEvents.push(e); });
-      eventBus.subscribe('AnotherEvent', (e: AnotherEvent): void => { anotherEvents.push(e); });
+      eventBus.subscribe('TestEvent', (e: TestEvent): void => {
+        testEvents.push(e);
+      });
+      eventBus.subscribe('AnotherEvent', (e: AnotherEvent): void => {
+        anotherEvents.push(e);
+      });
 
       await eventBus.publish(new TestEvent('hello'));
       await eventBus.publish(new AnotherEvent(42));
@@ -83,11 +97,13 @@ describe('InMemoryEventBus', () => {
   describe('unsubscribe', () => {
     it('should stop delivering events after unsubscribe', async () => {
       let count = 0;
-      const handler = (): void => { count++; };
+      const handler = (): void => {
+        count++;
+      };
 
       eventBus.subscribe('TestEvent', handler);
       await eventBus.publish(new TestEvent('1'));
-      
+
       eventBus.unsubscribe('TestEvent', handler);
       await eventBus.publish(new TestEvent('2'));
 
@@ -97,12 +113,16 @@ describe('InMemoryEventBus', () => {
     it('should only remove the specific handler', async () => {
       let count1 = 0;
       let count2 = 0;
-      const handler1 = (): void => { count1++; };
-      const handler2 = (): void => { count2++; };
+      const handler1 = (): void => {
+        count1++;
+      };
+      const handler2 = (): void => {
+        count2++;
+      };
 
       eventBus.subscribe('TestEvent', handler1);
       eventBus.subscribe('TestEvent', handler2);
-      
+
       eventBus.unsubscribe('TestEvent', handler1);
       await eventBus.publish(new TestEvent('test'));
 
@@ -150,16 +170,18 @@ describe('InMemoryEventBus', () => {
   describe('clear', () => {
     it('should clear handlers and history', async () => {
       let callCount = 0;
-      eventBus.subscribe('TestEvent', () => { callCount++; });
+      eventBus.subscribe('TestEvent', () => {
+        callCount++;
+      });
       await eventBus.publish(new TestEvent('test'));
       expect(callCount).toBe(1);
       expect(eventBus.getHistory()).toHaveLength(1);
-      
+
       eventBus.clear();
-      
+
       // History should be cleared
       expect(eventBus.getHistory()).toHaveLength(0);
-      
+
       // Publish new event - handler shouldn't be called since it was cleared
       await eventBus.publish(new TestEvent('test2'));
       expect(callCount).toBe(1); // Still 1 because handler was cleared
@@ -169,10 +191,16 @@ describe('InMemoryEventBus', () => {
   describe('error handling', () => {
     it('should continue with other handlers if one throws', async () => {
       const results: string[] = [];
-      
-      eventBus.subscribe('TestEvent', (): void => { results.push('first'); });
-      eventBus.subscribe('TestEvent', (): void => { throw new Error('Handler error'); });
-      eventBus.subscribe('TestEvent', (): void => { results.push('third'); });
+
+      eventBus.subscribe('TestEvent', (): void => {
+        results.push('first');
+      });
+      eventBus.subscribe('TestEvent', (): void => {
+        throw new Error('Handler error');
+      });
+      eventBus.subscribe('TestEvent', (): void => {
+        results.push('third');
+      });
 
       // Should not throw
       await eventBus.publish(new TestEvent('test'));
