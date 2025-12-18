@@ -247,29 +247,43 @@ Additional test commands:
 - `npm run type-check` - TypeScript type checking
 - `npm run lint` - ESLint code quality check
 
-### Test Generation & Soft Assertions
+### Test Generation & Assertion Policy
 
-The system automatically generates Playwright test specs from exploration findings. To reduce flakiness, the test generator uses **soft assertions** (logged warnings) instead of hard failures for accessibility and console error checks:
+The system automatically generates Playwright test specs from exploration findings. Tests now use **strict assertions** for console errors and accessibility issues so failing specs indicate reproducible bugs that should be fixed or explicitly acknowledged.
 
-- **Console Errors**: Expected errors (401, 404, favicon, rate limits) are whitelisted and ignored. Other console errors trigger warnings in test output but don't fail the test. Configure via `LLM_CIRCUIT_BREAKER_IGNORE_CONSOLE_ERRORS` in test config.
-- **Accessibility Issues**: Missing alt text or button labels log warnings instead of failing the test (soft assertion via `console.warn()`).
-- **Text Issues**: Typos and undefined values are counted and logged as warnings rather than strict string matching that breaks on minor content changes.
+- **Console Errors**: Expected errors (401, 404, favicon, rate limits) are still whitelisted via configuration, but any unexpected console error will cause the generated test to fail. Configure ignored patterns via the `ignoreConsoleErrors` setting in the test generation config.
+- **Accessibility Issues**: Missing alt text or unlabeled buttons are treated as test failures so they can serve as regression checks.
+- **Text Issues**: Occurrences of literal `undefined`, critical error indicators, and detected typos will now cause the test to fail rather than only logging a warning.
 
 This approach:
-- **Reduces False Positives**: Tests don't fail on transient network errors (404s from CDN timeouts) or expected auth errors (401 when unauthenticated).
-- **Maintains Coverage**: All issues are still reported in test output, just as non-blocking warnings.
-- **Improves Stability**: Easier to integrate into CI/CD without flaky test gates.
+- **Ensures Reproducibility**: Failing tests are reliable indicators of bugs and suitable as TDD 'red' tests.
+- **Enables CI Enforcement**: Hard failures can block merges until bugs are addressed.
+- **Requires Triage**: Expect more failing specs initially; use severity filters or config to tune which findings generate hard assertions.
 
-Example generated test:
+### Using Failing Tests as TDD 'Red' Checks
+
+- Generated Playwright tests that fail should be treated as a confirmation of a real issue discovered by the exploration run. A failing spec is a valid "red" signal in a TDD workflow: it documents the bug, reproduces the failure in CI, and can be used as the starting point for a fix.
+- Recommended workflow:
+   1. Run the generated test and confirm it fails (red).
+   2. Implement a fix in the codebase or test expectations (green).
+   3. Keep the test as a regression check (refactor) and include it in CI.
+
+Note: Because assertions are stricter, you can selectively tune behavior by severity (e.g., only fail on `Critical`/`High`) or by toggling generation flags when running the test generator.
+
+Example generated test (current behavior):
 ```typescript
-// From finding: "Console error detected: 404 favicon"
-// Soft assertion: logged as warning, not a test failure
-console.warn('Console error detected (non-critical): 404 favicon');
+// From finding: "Console error detected: Uncaught TypeError"
+// Hard assertion: unexpected console errors fail the test
+const consoleErrors: string[] = [];
+page.on('console', msg => {
+   if (msg.type() === 'error') consoleErrors.push(msg.text());
+});
+await page.reload();
+await page.waitForLoadState('networkidle');
+expect(consoleErrors).toHaveLength(0);
 
 // From finding: "Image missing alt text"
-// Soft assertion: counted and logged
+// Hard assertion: images must have alt text
 const imagesWithoutAlt = await page.locator('img:not([alt])').count();
-if (imagesWithoutAlt > 0) {
-  console.warn(`Found ${imagesWithoutAlt} images without alt text`);
-}
+expect(imagesWithoutAlt, 'Images should have alt text').toBe(0);
 ```

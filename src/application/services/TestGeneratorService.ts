@@ -117,8 +117,7 @@ export class TestGeneratorService {
   private findingToTestCase(finding: Finding): TestCase | null {
     // Skip findings that are not suitable for automated testing
     // - performance/security are architectural, not testable via browser automation
-    // - console_error generates too many false positives (expected 401/404 errors)
-    if (finding.type === 'performance' || finding.type === 'security' || finding.type === 'console_error') {
+    if (finding.type === 'performance' || finding.type === 'security') {
       return null;
     }
 
@@ -214,9 +213,7 @@ export class TestGeneratorService {
         `// Check for 'undefined' text on the page`,
         `const pageContent = await page.content();`,
         `const undefinedCount = (pageContent.match(/\\bundefined\\b|\\bUNDEFINED\\b/gi) || []).length;`,
-        `if (undefinedCount > 0) {`,
-        `  console.warn(\`⚠️  Found \${undefinedCount} instances of 'undefined' text on page\`);`,
-        `}`
+        `expect(undefinedCount, 'Page should not contain literal "undefined" text').toBe(0);`
       );
     }
 
@@ -230,8 +227,8 @@ export class TestGeneratorService {
           `// Check for typo: '${wrongWord}' should be '${correctWord}'`,
           `const pageText = await page.textContent('body');`,
           `if (pageText?.includes('${wrongWord}')) {`,
-          `  console.warn(\`⚠️  Found suspected typo: '${wrongWord}' (expected: '${correctWord}')\`);`,
-          `}`
+            `  expect(pageText).not.toContain('${wrongWord}');`,
+            `}`
         );
       }
     }
@@ -242,16 +239,14 @@ export class TestGeneratorService {
         `// Check for unexpected error messages`,
         `const bodyText = await page.textContent('body');`,
         `const errorIndicators = (bodyText?.match(/\\bError\\b|\\bFAILED\\b/gi) || []).length;`,
-        `if (errorIndicators > 2) {`,
-        `  console.warn('⚠️  Page displays multiple error indicators');`,
-        `}`
+        `expect(errorIndicators, 'Page should not show multiple error indicators').toBeLessThanOrEqual(2);`
       );
     }
 
-    // Default soft assertion if nothing specific was found
+    // Default assertion if nothing specific was found
     if (assertions.length === 0) {
       assertions.push(
-        `// Soft assertion: page should have meaningful content`,
+        `// Ensure page has meaningful content`,
         `const pageText = await page.textContent('body');`,
         `expect(pageText?.trim().length ?? 0).toBeGreaterThan(0);`
       );
@@ -356,11 +351,8 @@ export class TestGeneratorService {
       `await page.waitForLoadState('networkidle');`,
       `// Filter out known/acceptable errors`,
       `const criticalErrors = consoleErrors.filter(e => ${ignorePatterns});`,
-      `// Only fail if there are unexpected critical errors`,
-      `if (criticalErrors.length > 0) {`,
-      `  console.warn('Unexpected console errors:', criticalErrors);`,
-      `  expect(criticalErrors, 'Page should not have unexpected console errors').toHaveLength(0);`,
-      `}`,
+      `// Fail if there are unexpected critical errors`,
+      `expect(criticalErrors, 'Page should not have unexpected console errors').toHaveLength(0);`,
     ];
   }
 
@@ -377,7 +369,7 @@ export class TestGeneratorService {
    */
   private generateAccessibilityAssertions(_finding: Finding): string[] {
     return [
-      `// Accessibility checks (soft assertions - log warnings but don't fail)`,
+      `// Accessibility checks (fail on missing alt text or unlabeled buttons)`,
       `const images = await page.locator('img').all();`,
       `let missingAltCount = 0;`,
       `for (const img of images) {`,
@@ -387,9 +379,7 @@ export class TestGeneratorService {
       `    missingAltCount++;`,
       `  }`,
       `}`,
-      `if (missingAltCount > 0) {`,
-      `  console.warn(\`⚠️  Found \${missingAltCount} images without alt text\`);`,
-      `}`,
+      `expect(missingAltCount, 'Images should have alt text').toBe(0);`,
       ``,
       `const buttons = await page.locator('button').all();`,
       `let inaccessibleButtonCount = 0;`,
@@ -400,9 +390,7 @@ export class TestGeneratorService {
       `    inaccessibleButtonCount++;`,
       `  }`,
       `}`,
-      `if (inaccessibleButtonCount > 0) {`,
-      `  console.warn(\`⚠️  Found \${inaccessibleButtonCount} buttons without accessible labels\`);`,
-      `}`,
+      `expect(inaccessibleButtonCount, 'Buttons should have accessible labels').toBe(0);`,
     ];
   }
 
