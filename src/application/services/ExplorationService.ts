@@ -66,6 +66,8 @@ export interface ExplorationServiceConfig {
     enableChaos?: boolean;
     enableEdgeCase?: boolean;
   };
+  /** Maximum number of times the same action can be repeated before forcing an alternative */
+  actionLoopMaxRepetitions?: number;
 }
 
 const DEFAULT_CONFIG: ExplorationServiceConfig = {
@@ -79,6 +81,7 @@ const DEFAULT_CONFIG: ExplorationServiceConfig = {
   enablePersonas: true,
   maxSuggestionsPerPersona: 5,
   navigationWaitTime: 2000,
+  actionLoopMaxRepetitions: 2,
 };
 
 /**
@@ -609,11 +612,12 @@ export class ExplorationService {
           }
         }
 
-        // Action loop detection: prevent repetitive actions (max 2 same actions)
+        // Action loop detection: prevent repetitive actions
         const actionSignature = this.getActionSignature(decision);
         const actionCount = this.recentActions.get(actionSignature) || 0;
+        const maxRepetitions = this.config.actionLoopMaxRepetitions ?? 2;
 
-        if (actionCount >= 2) {
+        if (actionCount >= maxRepetitions) {
           console.log(`[ActionLoop] Action '${actionSignature}' repeated ${actionCount} times, requesting alternative`);
 
           const retryResponse = await this.llm.decideNextAction({

@@ -1,71 +1,19 @@
+import { SystemPromptBuilder } from './prompts/builders/SystemPromptBuilder';
+import { getPromptConfig } from './config/prompt-config';
+
+// Re-export for convenience
+export { SystemPromptBuilder } from './prompts/builders/SystemPromptBuilder';
+export { getPromptConfig, setPromptConfig, resetPromptConfig } from './config/prompt-config';
+export type { PromptConfig } from './config/prompt-config';
+
 /**
  * System prompt for the exploration agent.
  * Establishes the agent's persona and behavior guidelines.
+ *
+ * @deprecated Use SystemPromptBuilder.buildDefault() instead for better maintainability.
+ * This constant is kept for backward compatibility.
  */
-export const SYSTEM_PROMPT = `You are an expert exploratory testing agent designed to autonomously discover bugs, usability issues, and unexpected behavior in web applications.
-
-## Your Role
-- You explore web applications systematically and intelligently
-- You ACTIVELY look for bugs by examining page content, text, dropdowns, forms, and behaviors
-- You make decisions about which actions to take based on the current page state
-- You maintain hypotheses about potential issues and test them
-
-## CRITICAL: What You Should Look For (Bugs You MUST Find)
-1. **Text Issues**: Look for typos, misspellings, grammatical errors in labels, buttons, and content
-2. **Dropdown/Select Issues**: Check if dropdowns contain "undefined", "null", "NaN", "[object Object]", empty options, or incorrect values
-3. **Form Validation**: Test forms by submitting with invalid data, empty fields, or edge cases
-4. **Broken Features**: Try adding items to cart, favorites, wishlist - verify they actually work
-5. **Sort/Filter Issues**: Test sorting and filtering - verify they produce correct results
-6. **Navigation Issues**: Click on links and verify they go to the expected pages
-7. **Login/Registration**: Test sign-in and sign-up flows with various inputs
-8. **Error Messages**: Look for inappropriate error messages or missing error handling
-9. **Data Display**: Check if data displays correctly (prices, names, descriptions)
-10. **Console Errors**: Note any JavaScript errors in console
-
-## Exploration Strategy
-1. **Discovery Phase**: Explore ALL main sections - Home, Products, Categories, Contact, Sign In, Cart
-2. **Interaction Phase**: Actually USE the features - add to cart, favorite items, fill forms, use filters
-3. **Verification Phase**: Confirm suspected issues with additional testing
-
-## Decision Making Guidelines
-- **READ THE VISIBLE CONTENT** - Look at the actual text on the page for issues
-- Prioritize unexplored areas over already-visited pages
-- Click on interactive elements and VERIFY the results
-- Fill forms with edge case values (empty, very long, special characters)
-- Check dropdowns by selecting different options
-- Test user flows end-to-end when possible
-- **REPORT BUGS**: When you see text like "undefined", typos, broken features - that IS a bug!
-
-## When to Use Tools
-- Use \`find_broken_images\` when you see images on the page that might be broken
-- Use tools proactively, not just when you see obvious issues
-- **IMPORTANT**: Do NOT call the same tool more than once on the same page
-- After running a tool, move on to explore other parts of the application
-
-## When to Report Findings
-Report a finding when you observe:
-- Text showing "undefined", "null", "NaN", or "[object Object]"
-- Typos or misspellings in labels, buttons, or content
-- Features that don't work (add to cart fails, filters don't filter, etc.)
-- Form validation issues or inappropriate error messages
-- Console errors or network failures
-- Unexpected behavior after an action
-
-## Confidence Scoring
-Rate your confidence (0-1) based on:
-- 0.9-1.0: Very confident, clear next step
-- 0.7-0.8: Confident, reasonable choice
-- 0.5-0.6: Uncertain, multiple valid options
-- 0.3-0.4: Low confidence, exploring blindly
-
-## Output Format
-You must respond with a JSON object containing your decision. Always include:
-- action: The action type to perform
-- reasoning: Why you chose this action (include any bugs you observed!)
-- confidence: Your confidence score (0-1)
-- hypothesis: What you're testing (if applicable)
-- expectedOutcome: What you expect to happen
-- observedIssues: List any bugs/issues you noticed on the current page`;
+export const SYSTEM_PROMPT = SystemPromptBuilder.buildDefault();
 
 /**
  * Schema for action decision output.
@@ -258,15 +206,17 @@ export function buildDecisionPrompt(
   urlQueueContext?: string,
   reportedBugsSummary?: string
 ): string {
+  const config = getPromptConfig();
+
   // Format elements
   const elementsText = pageContext.elements
-    .slice(0, 30) // Limit to 30 elements
+    .slice(0, config.context.maxElements)
     .map((el, i) => `${i + 1}. [${el.type}] ${el.selector} - "${el.text.substring(0, 50)}"${el.isVisible ? '' : ' (hidden)'}`)
     .join('\n');
 
   // Format history with more detail about tool actions
   const historyText = history
-    .slice(-10) // Last 10 steps
+    .slice(-config.context.maxHistorySteps)
     .map(h => {
       let actionDesc = h.action.action;
       if (h.action.action === 'tool' && (h.action as any).toolName) {
@@ -286,21 +236,21 @@ export function buildDecisionPrompt(
 
   // Format errors
   const consoleErrorsText = pageContext.consoleErrors.length > 0
-    ? pageContext.consoleErrors.slice(0, 5).join('\n')
+    ? pageContext.consoleErrors.slice(0, config.context.maxConsoleErrors).join('\n')
     : 'None';
   const networkErrorsText = pageContext.networkErrors.length > 0
-    ? pageContext.networkErrors.slice(0, 5).join('\n')
+    ? pageContext.networkErrors.slice(0, config.context.maxNetworkErrors).join('\n')
     : 'None';
 
   return `${objective ? `## Objective\n${objective}\n\n` : ''}## Current Page State
 URL: ${pageContext.url}
 Title: ${pageContext.title}
 
-### Interactive Elements (${pageContext.elements.length} total, showing first 30)
+### Interactive Elements (${pageContext.elements.length} total, showing first ${config.context.maxElements})
 ${elementsText}
 
 ### Visible Content (IMPORTANT: READ THIS FOR BUGS - look for typos, "undefined", incorrect text)
-${pageContext.visibleText.substring(0, 1500)}...
+${pageContext.visibleText.substring(0, config.context.maxVisibleTextChars)}...
 
 ### Page Issues
 Console Errors: ${consoleErrorsText}
@@ -407,32 +357,34 @@ export function buildDecisionPromptWithPersonas(
   urlQueueContext?: string,
   reportedBugsSummary?: string
 ): string {
+  const config = getPromptConfig();
+
   // Get base prompt with URL context and reported bugs
   const basePrompt = buildDecisionPrompt(pageContext, history, tools, objective, urlQueueContext, reportedBugsSummary);
-  
-  // Build persona suggestions section - LIMIT TO 5 PER PERSONA
+
+  // Build persona suggestions section
   const relevantPersonas = personaAnalyses.filter(p => p.isRelevant && p.suggestions.length > 0);
-  
+
   if (relevantPersonas.length === 0) {
     return basePrompt;
   }
-  
+
   const personaSuggestionsText = relevantPersonas.map(persona => {
-    // LIMIT TO TOP 5 SUGGESTIONS PER PERSONA, sorted by confidence
+    // Limit to top N suggestions per persona, sorted by confidence
     const topSuggestions = persona.suggestions
       .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 5);
+      .slice(0, config.context.maxPersonaSuggestions);
     
     const suggestionsText = topSuggestions.map((s, i) => {
       const actionStr = formatSuggestionAction(s);
       return `  ${i + 1}. ${actionStr}\n     Reasoning: ${s.reasoning}\n     Risk: ${s.riskLevel}, Confidence: ${Math.round(s.confidence * 100)}%`;
     }).join('\n');
-    
+
     return `### ${persona.personaName} (top ${topSuggestions.length} of ${persona.suggestions.length})\n${suggestionsText}`;
   }).join('\n\n');
-  
+
   // Count total suggestions shown
-  const totalShown = relevantPersonas.reduce((sum, p) => sum + Math.min(p.suggestions.length, 5), 0);
+  const totalShown = relevantPersonas.reduce((sum, p) => sum + Math.min(p.suggestions.length, config.context.maxPersonaSuggestions), 0);
   
   const personaSection = `
 ## Testing Persona Suggestions (${totalShown} shown)

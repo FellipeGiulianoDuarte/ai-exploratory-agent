@@ -2,6 +2,18 @@ Technical Trade-offs: Current State vs. Evolution
 
 This document summarizes the system architecture, contrasting what is implemented today with proposed improvements and their likely impacts.
 
+---
+
+## Design Philosophy
+
+The system prioritizes **maintainability** and **observability** over premature optimization. Each architectural decision aims to:
+1. Make the codebase easy to understand and modify
+2. Provide visibility into system behavior for debugging
+3. Keep the initial implementation simple while enabling future evolution
+4. Avoid lock-in to specific technologies or patterns
+
+---
+
 1) Adapters (LLM)
 - What we have: `LLMPort` interface and working adapters (OpenAI, Anthropic, Gemini).
 - What we can do: Add new providers or standardize via a dependency injection (DI) container; expose advanced capabilities such as streaming and function-calling.
@@ -48,7 +60,26 @@ This document summarizes the system architecture, contrasting what is implemente
 - What we can do: Add an LLM-assisted refinement loop, human review workflow, and versioning for trusted specs.
 - Trade-offs: Automatic generation accelerates coverage but may introduce false positives that require human maintenance.
 
-9) Configuration & Security
-- What we have: Local `.env` and simple feature flags (USE_MONGO, ENABLE_PERSONAS).
+9) Prompt Architecture (LLM Prompts)
+- What we have: **Modular, composable prompt system** with:
+  - Decomposed prompt sections (role, bug priorities, decision guidelines, etc.) in separate files
+  - `SystemPromptBuilder` for flexible prompt composition with fluent API
+  - Centralized configuration for all magic numbers (max elements, history steps, text chars)
+  - `PromptLogger` that logs all prompts to `./logs/prompts/` with metadata
+  - Phase-specific prompt variants (discovery, bug hunting, verification)
+- What we can do:
+  - Add prompt versioning system with semantic versioning
+  - Implement A/B testing framework for comparing prompt effectiveness
+  - Add dynamic few-shot example selection based on current context
+  - Create context-aware prompt assembly (different prompts for different scenarios)
+  - Add prompt performance metrics and analytics
+  - Implement template engine (Handlebars) for type-safe variable substitution
+  - Build prompt learning system that generates new examples from successful runs
+- Trade-offs:
+  - Current: Simple, maintainable, observable, testable. Easy to modify individual sections without affecting others. All prompts logged for debugging. Configuration is centralized and environment-variable driven.
+  - Advanced: Better performance through optimization, data-driven improvements via A/B testing. However, adds complexity (versioning, metrics collection, template engine dependencies), increases maintenance burden, and requires careful testing to ensure prompt changes don't degrade quality.
+
+10) Configuration & Security
+- What we have: Local `.env` and simple feature flags (ENABLE_PERSONAS).
 - What we can do: Migrate secrets to a secret manager, adopt typed validation (Zod) and remote feature flags.
 - Trade-offs: Improved security and dynamic control vs. higher operational cost and changes to developer workflow.

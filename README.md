@@ -126,8 +126,13 @@ ai-exploratory-agent/
 │   │   └── ports/              # Interface definitions
 │   ├── infrastructure/         # External integrations
 │   │   ├── browser/            # Playwright adapter
-│   │   ├── llm/                # OpenAI/Gemini adapters
-│   │   ├── tools/              # BrokenImageDetector
+│   │   ├── llm/                # OpenAI/Gemini/Anthropic adapters
+│   │   │   ├── prompts/        # Modular prompt architecture
+│   │   │   │   ├── sections/   # Individual prompt sections
+│   │   │   │   └── builders/   # SystemPromptBuilder
+│   │   │   ├── config/         # Prompt configuration
+│   │   │   └── observability/  # PromptLogger
+│   │   ├── tools/              # BrokenImageDetector, etc.
 │   │   ├── persistence/        # File-based storage
 │   │   ├── cli/                # Terminal interactions
 │   │   └── events/             # Event bus implementation
@@ -135,7 +140,9 @@ ai-exploratory-agent/
 ├── tests/                      # Test suites
 ├── reports/                    # Generated reports
 ├── findings/                   # Persisted findings
-└── screenshots/                # Evidence screenshots
+├── screenshots/                # Evidence screenshots
+└── logs/                       # Prompt logs (for debugging)
+    └── prompts/                # Logged LLM prompts
 ```
 
 ## Architecture Overview
@@ -197,7 +204,36 @@ Key design rationale:
 - **Configurable Thresholds**: Failure tolerance and recovery timeouts can be tuned per deployment environment.
 - **Optional Feature**: Circuit breaker is disabled for single-provider setups to minimize overhead.
 
-### 8. Test Generation with Soft Assertions
+### 8. Modular Prompt Architecture
+The LLM prompts use a **modular, composable architecture** instead of monolithic prompt strings. This enables:
+
+- **Maintainability**: Prompts are split into focused sections (role, bug priorities, decision guidelines, etc.) that can be modified independently
+- **Versioning**: Easy to track changes and A/B test different prompt variants
+- **Observability**: All prompts sent to LLMs are logged to `./logs/prompts/` for debugging and analysis
+- **Configuration**: Token limits, context window sizes, and temperatures are centralized in a config file
+- **Flexibility**: Build different prompts for different exploration phases (discovery, bug hunting, verification)
+
+**SystemPromptBuilder** provides a fluent API:
+```typescript
+// Default complete prompt
+const prompt = SystemPromptBuilder.buildDefault();
+
+// Custom composition
+const customPrompt = new SystemPromptBuilder()
+  .addRole()
+  .addResponsibilities()
+  .addBugPriorities()
+  .addCustomSection("## Special Instructions\n...")
+  .build();
+
+// Phase-specific prompts
+const discoveryPrompt = SystemPromptBuilder.buildForDiscovery();
+const bugHuntingPrompt = SystemPromptBuilder.buildForBugHunting();
+```
+
+All magic numbers (max elements, history steps, text chars) are configurable via environment variables, and all prompts are automatically logged with metadata for analysis.
+
+### 9. Test Generation with Soft Assertions
 The test generator creates Playwright specs that prioritize **false-negative avoidance** over strict correctness. Soft assertions (warnings instead of failures) for accessibility and console errors reduce flakiness without losing visibility into potential issues. Console errors from expected sources (404s, 401s, favicon) are automatically whitelisted.
 
 ## Configuration Options
@@ -217,8 +253,11 @@ The test generator creates Playwright specs that prioritize **false-negative avo
 | `LLM_CIRCUIT_BREAKER_SUCCESS_THRESHOLD` | `2` | Consecutive successes needed to close circuit and confirm recovery |
 | `MAX_STEPS` | `50` | Maximum exploration steps |
 | `CHECKPOINT_INTERVAL` | `10` | Steps between human checkpoints |
+| `ACTION_LOOP_MAX_REPETITIONS` | `2` | Max times same action can repeat before forcing alternative |
 | `HEADLESS` | `true` | Run browser in headless mode |
 | `VERBOSE` | `false` | Enable verbose logging |
+
+See `.env.example` for the complete list of configuration options including prompt configuration, persona settings, page exploration limits, and more.
 
 ## Generated Reports
 

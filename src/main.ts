@@ -39,8 +39,11 @@ async function main(): Promise<void> {
     }
   }
 
-  // Get configuration from command-line args, then environment, then defaults
-  const targetUrl = cliTargetUrl || process.env.TARGET_URL || 'https://with-bugs.practicesoftwaretesting.com';
+  // If a positional argument (first non-flag) was provided, prefer it as the target URL
+  const positionalArg = args.find(a => !a.startsWith('-'));
+
+  // Get configuration from command-line args (flag or positional), then environment, then defaults
+  const targetUrl = cliTargetUrl || positionalArg || process.env.TARGET_URL || 'https://with-bugs.practicesoftwaretesting.com';
   const objective = cliObjective || process.env.EXPLORATION_OBJECTIVE || 
     'Explore the web application thoroughly, looking for bugs, broken images, console errors, and usability issues.';
   const maxSteps = parseInt(process.env.MAX_STEPS || '50', 10);
@@ -52,7 +55,8 @@ async function main(): Promise<void> {
   const checkpointOnToolFindings = process.env.CHECKPOINT_ON_TOOL_FINDINGS !== 'false';
   const enablePersonas = process.env.ENABLE_PERSONAS !== 'false';
   const maxSuggestionsPerPersona = parseInt(process.env.MAX_SUGGESTIONS_PER_PERSONA || '5', 10);
-  
+  const actionLoopMaxRepetitions = parseInt(process.env.ACTION_LOOP_MAX_REPETITIONS || '2', 10);
+
   // Individual persona configuration
   const personaConfig = {
     enableSecurity: process.env.ENABLE_SECURITY_PERSONA !== 'false',
@@ -135,6 +139,7 @@ async function main(): Promise<void> {
       similarityThreshold,
       enablePatternMatching,
       enableSemanticMatching,
+      actionLoopMaxRepetitions,
     }
   );
 

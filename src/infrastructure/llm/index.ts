@@ -7,6 +7,14 @@ export {
   HISTORY_FORMAT,
   FEW_SHOT_EXAMPLES,
   buildDecisionPrompt,
+  buildDecisionPromptWithPersonas,
   FINDING_ANALYSIS_PROMPT,
   SUMMARY_PROMPT,
+  SystemPromptBuilder,
+  getPromptConfig,
+  setPromptConfig,
+  resetPromptConfig,
 } from './prompts';
+export type { PromptConfig } from './prompts';
+export { getPromptLogger } from './observability/PromptLogger';
+export type { PromptLogger, PromptTaskType, PromptLogEntry } from './observability/PromptLogger';

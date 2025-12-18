@@ -8,7 +8,8 @@ import {
   LLMResponse,
   LLMCompletionOptions,
 } from '../../application/ports/LLMPort';
-import { SYSTEM_PROMPT, buildDecisionPrompt, FINDING_ANALYSIS_PROMPT, SUMMARY_PROMPT } from './prompts';
+import { SYSTEM_PROMPT, buildDecisionPrompt, FINDING_ANALYSIS_PROMPT, SUMMARY_PROMPT, getPromptConfig } from './prompts';
+import { getPromptLogger } from './observability/PromptLogger';
 
 /**
  * Configuration for the Anthropic adapter.
@@ -57,6 +58,8 @@ export class AnthropicAdapter implements LLMPort {
     options?: LLMCompletionOptions
   ): Promise<LLMResponse> {
     const startTime = Date.now();
+    const config = getPromptConfig();
+    const logger = getPromptLogger();
 
     // Build the user prompt
     const userPrompt = buildDecisionPrompt(
@@ -73,11 +76,23 @@ export class AnthropicAdapter implements LLMPort {
       request.reportedBugsSummary
     );
 
+    const temperature = options?.temperature ?? config.temperature.decision;
+    const maxTokens = options?.maxTokens ?? config.tokens.decision;
+
+    // Log the prompt for observability
+    logger.logPrompt('decision', SYSTEM_PROMPT, userPrompt, {
+      url: request.pageContext.url,
+      llmProvider: this.provider,
+      llmModel: this.model,
+      temperature,
+      maxTokens,
+    });
+
     try {
       const response = await this.client.messages.create({
         model: this.config.model,
-        max_tokens: options?.maxTokens ?? this.config.defaultMaxTokens,
-        temperature: options?.temperature ?? this.config.defaultTemperature,
+        max_tokens: maxTokens,
+        temperature,
         system: SYSTEM_PROMPT,
         messages: [
           {
@@ -123,15 +138,30 @@ export class AnthropicAdapter implements LLMPort {
     description: string;
     recommendation: string;
   }> {
+    const config = getPromptConfig();
+    const logger = getPromptLogger();
+
     const prompt = FINDING_ANALYSIS_PROMPT
       .replace('{{finding}}', finding)
       .replace('{{url}}', context.url)
       .replace('{{title}}', context.title);
 
+    const temperature = config.temperature.analysis;
+    const maxTokens = config.tokens.analysis;
+
+    // Log the prompt for observability
+    logger.logPrompt('analysis', '', prompt, {
+      url: context.url,
+      llmProvider: this.provider,
+      llmModel: this.model,
+      temperature,
+      maxTokens,
+    });
+
     const response = await this.client.messages.create({
       model: this.config.model,
-      max_tokens: 512,
-      temperature: 0.3,
+      max_tokens: maxTokens,
+      temperature,
       messages: [
         {
           role: 'user',
@@ -168,6 +198,9 @@ export class AnthropicAdapter implements LLMPort {
     history: ExplorationHistoryEntry[],
     findings: string[]
   ): Promise<string> {
+    const config = getPromptConfig();
+    const logger = getPromptLogger();
+
     const successfulActions = history.filter(h => h.success).length;
     const failedActions = history.filter(h => !h.success).length;
     const pagesVisited = new Set(history.map(h => h.resultingUrl)).size;
@@ -179,10 +212,21 @@ export class AnthropicAdapter implements LLMPort {
       .replace('{{pagesVisited}}', String(pagesVisited))
       .replace('{{findings}}', findings.length > 0 ? findings.join('\n- ') : 'No findings');
 
+    const temperature = config.temperature.summary;
+    const maxTokens = config.tokens.summary;
+
+    // Log the prompt for observability
+    logger.logPrompt('summary', '', prompt, {
+      llmProvider: this.provider,
+      llmModel: this.model,
+      temperature,
+      maxTokens,
+    });
+
     const response = await this.client.messages.create({
       model: this.config.model,
-      max_tokens: 1024,
-      temperature: 0.5,
+      max_tokens: maxTokens,
+      temperature,
       messages: [
         {
           role: 'user',
