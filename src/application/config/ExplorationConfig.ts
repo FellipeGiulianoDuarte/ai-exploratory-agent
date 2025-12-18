@@ -65,6 +65,8 @@ export const EXIT_CRITERIA = {
   DEFAULT_EXIT_AFTER_BUGS_FOUND: 3,
   /** Minimum steps on URL before considering exit */
   MIN_STEPS_BEFORE_EXIT: 2,
+  /** Default required tools (comma-separated string) */
+  DEFAULT_REQUIRED_TOOLS: 'analyze,find_broken_images',
 } as const;
 
 /**
@@ -73,6 +75,10 @@ export const EXIT_CRITERIA = {
 export const DEDUPLICATION = {
   /** Default similarity threshold for bug matching */
   DEFAULT_SIMILARITY_THRESHOLD: 0.6,
+  /** Default enable pattern matching */
+  DEFAULT_ENABLE_PATTERN_MATCHING: true,
+  /** Default enable semantic matching */
+  DEFAULT_ENABLE_SEMANTIC_MATCHING: true,
 } as const;
 
 /**
@@ -81,20 +87,32 @@ export const DEDUPLICATION = {
 export const PERSONA = {
   /** Default max suggestions per persona */
   DEFAULT_MAX_SUGGESTIONS_PER_PERSONA: 5,
+  /** Default individual persona settings */
+  DEFAULT_ENABLE_SECURITY: true,
+  DEFAULT_ENABLE_MONITOR: true,
+  DEFAULT_ENABLE_VALIDATION: true,
+  DEFAULT_ENABLE_CHAOS: true,
+  DEFAULT_ENABLE_EDGE_CASE: true,
 } as const;
 
 /**
  * Exploration defaults.
  */
 export const EXPLORATION = {
+  /** Default target URL */
+  DEFAULT_TARGET_URL: 'https://with-bugs.practicesoftwaretesting.com',
   /** Default max steps */
-  DEFAULT_MAX_STEPS: 100,
+  DEFAULT_MAX_STEPS: 50,
   /** Default checkpoint interval */
   DEFAULT_CHECKPOINT_INTERVAL: 10,
   /** Default progress summary interval */
   DEFAULT_PROGRESS_SUMMARY_INTERVAL: 5,
   /** Default minimum confidence threshold */
-  DEFAULT_MIN_CONFIDENCE_THRESHOLD: 0.5,
+  DEFAULT_MIN_CONFIDENCE_THRESHOLD: 0.6,
+  /** Default checkpoint on tool findings */
+  DEFAULT_CHECKPOINT_ON_TOOL_FINDINGS: true,
+  /** Default enable personas */
+  DEFAULT_ENABLE_PERSONAS: true,
   /** Default exploration objective */
   DEFAULT_OBJECTIVE:
     'Explore the web application thoroughly, looking for bugs, broken images, console errors, and usability issues.',

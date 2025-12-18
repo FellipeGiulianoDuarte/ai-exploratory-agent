@@ -16,6 +16,14 @@ import { ScreenshotCaptureTool } from './infrastructure/tools/ScreenshotCaptureT
 import { PageContentAnalyzerTool } from './infrastructure/tools/PageContentAnalyzerTool';
 import { DropdownValidatorTool } from './infrastructure/tools/DropdownValidatorTool';
 import { HumanGuidance } from './domain/exploration/ExplorationSession';
+import {
+  EXPLORATION,
+  NAVIGATION,
+  PERSONA,
+  EXIT_CRITERIA,
+  DEDUPLICATION,
+  LOOP_DETECTION,
+} from './application/config/ExplorationConfig';
 
 // Load environment variables
 dotenv.config();
@@ -42,49 +50,97 @@ async function main(): Promise<void> {
   // If a positional argument (first non-flag) was provided, prefer it as the target URL
   const positionalArg = args.find(a => !a.startsWith('-'));
 
-  // Get configuration from command-line args (flag or positional), then environment, then defaults
+  // Get configuration from command-line args (flag or positional), then environment, then config defaults
   const targetUrl =
-    cliTargetUrl ||
-    positionalArg ||
-    process.env.TARGET_URL ||
-    'https://with-bugs.practicesoftwaretesting.com';
+    cliTargetUrl || positionalArg || process.env.TARGET_URL || EXPLORATION.DEFAULT_TARGET_URL;
   const objective =
-    cliObjective ||
-    process.env.EXPLORATION_OBJECTIVE ||
-    'Explore the web application thoroughly, looking for bugs, broken images, console errors, and usability issues.';
-  const maxSteps = parseInt(process.env.MAX_STEPS || '50', 10);
-  const checkpointInterval = parseInt(process.env.CHECKPOINT_INTERVAL || '10', 10);
-  const progressSummaryInterval = parseInt(process.env.PROGRESS_SUMMARY_INTERVAL || '5', 10);
-  const stepTimeout = parseInt(process.env.STEP_TIMEOUT || '30000', 10);
-  const navigationWaitTime = parseInt(process.env.NAVIGATION_WAIT_TIME || '2000', 10);
-  const minConfidenceThreshold = parseFloat(process.env.MIN_CONFIDENCE_THRESHOLD || '0.6');
-  const checkpointOnToolFindings = process.env.CHECKPOINT_ON_TOOL_FINDINGS !== 'false';
-  const enablePersonas = process.env.ENABLE_PERSONAS !== 'false';
-  const maxSuggestionsPerPersona = parseInt(process.env.MAX_SUGGESTIONS_PER_PERSONA || '5', 10);
-  const actionLoopMaxRepetitions = parseInt(process.env.ACTION_LOOP_MAX_REPETITIONS || '2', 10);
+    cliObjective || process.env.EXPLORATION_OBJECTIVE || EXPLORATION.DEFAULT_OBJECTIVE;
+  const maxSteps = parseInt(
+    process.env.MAX_STEPS || String(EXPLORATION.DEFAULT_MAX_STEPS),
+    10
+  );
+  const checkpointInterval = parseInt(
+    process.env.CHECKPOINT_INTERVAL || String(EXPLORATION.DEFAULT_CHECKPOINT_INTERVAL),
+    10
+  );
+  const progressSummaryInterval = parseInt(
+    process.env.PROGRESS_SUMMARY_INTERVAL || String(EXPLORATION.DEFAULT_PROGRESS_SUMMARY_INTERVAL),
+    10
+  );
+  const stepTimeout = parseInt(
+    process.env.STEP_TIMEOUT || String(NAVIGATION.DEFAULT_STEP_TIMEOUT),
+    10
+  );
+  const navigationWaitTime = parseInt(
+    process.env.NAVIGATION_WAIT_TIME || String(NAVIGATION.DEFAULT_WAIT_TIME),
+    10
+  );
+  const minConfidenceThreshold = parseFloat(
+    process.env.MIN_CONFIDENCE_THRESHOLD || String(EXPLORATION.DEFAULT_MIN_CONFIDENCE_THRESHOLD)
+  );
+  const checkpointOnToolFindings =
+    process.env.CHECKPOINT_ON_TOOL_FINDINGS !== 'false'
+      ? EXPLORATION.DEFAULT_CHECKPOINT_ON_TOOL_FINDINGS
+      : false;
+  const enablePersonas =
+    process.env.ENABLE_PERSONAS !== 'false' ? EXPLORATION.DEFAULT_ENABLE_PERSONAS : false;
+  const maxSuggestionsPerPersona = parseInt(
+    process.env.MAX_SUGGESTIONS_PER_PERSONA || String(PERSONA.DEFAULT_MAX_SUGGESTIONS_PER_PERSONA),
+    10
+  );
+  const actionLoopMaxRepetitions = parseInt(
+    process.env.ACTION_LOOP_MAX_REPETITIONS ||
+      String(LOOP_DETECTION.DEFAULT_MAX_ACTION_REPETITIONS),
+    10
+  );
 
-  // Individual persona configuration
+  // Individual persona configuration - use config defaults
   const personaConfig = {
-    enableSecurity: process.env.ENABLE_SECURITY_PERSONA !== 'false',
-    enableMonitor: process.env.ENABLE_MONITOR_PERSONA !== 'false',
-    enableValidation: process.env.ENABLE_VALIDATION_PERSONA !== 'false',
-    enableChaos: process.env.ENABLE_CHAOS_PERSONA !== 'false',
-    enableEdgeCase: process.env.ENABLE_EDGE_CASE_PERSONA !== 'false',
+    enableSecurity:
+      process.env.ENABLE_SECURITY_PERSONA !== 'false' ? PERSONA.DEFAULT_ENABLE_SECURITY : false,
+    enableMonitor:
+      process.env.ENABLE_MONITOR_PERSONA !== 'false' ? PERSONA.DEFAULT_ENABLE_MONITOR : false,
+    enableValidation:
+      process.env.ENABLE_VALIDATION_PERSONA !== 'false' ? PERSONA.DEFAULT_ENABLE_VALIDATION : false,
+    enableChaos:
+      process.env.ENABLE_CHAOS_PERSONA !== 'false' ? PERSONA.DEFAULT_ENABLE_CHAOS : false,
+    enableEdgeCase:
+      process.env.ENABLE_EDGE_CASE_PERSONA !== 'false' ? PERSONA.DEFAULT_ENABLE_EDGE_CASE : false,
   };
 
-  // Page exploration context configuration
-  const maxActionsPerPage = parseInt(process.env.MAX_ACTIONS_PER_PAGE || '8', 10);
-  const maxTimePerPage = parseInt(process.env.MAX_TIME_PER_PAGE || '60000', 10);
-  const minElementInteractions = parseInt(process.env.MIN_ELEMENT_INTERACTIONS || '3', 10);
-  const exitAfterBugsFound = parseInt(process.env.EXIT_AFTER_BUGS_FOUND || '3', 10);
-  const requiredTools = (process.env.REQUIRED_TOOLS || 'analyze,find_broken_images')
+  // Page exploration context configuration - use config defaults
+  const maxActionsPerPage = parseInt(
+    process.env.MAX_ACTIONS_PER_PAGE || String(EXIT_CRITERIA.DEFAULT_MAX_ACTIONS_PER_PAGE),
+    10
+  );
+  const maxTimePerPage = parseInt(
+    process.env.MAX_TIME_PER_PAGE || String(EXIT_CRITERIA.DEFAULT_MAX_TIME_PER_PAGE),
+    10
+  );
+  const minElementInteractions = parseInt(
+    process.env.MIN_ELEMENT_INTERACTIONS || String(EXIT_CRITERIA.DEFAULT_MIN_ELEMENT_INTERACTIONS),
+    10
+  );
+  const exitAfterBugsFound = parseInt(
+    process.env.EXIT_AFTER_BUGS_FOUND || String(EXIT_CRITERIA.DEFAULT_EXIT_AFTER_BUGS_FOUND),
+    10
+  );
+  const requiredTools = (process.env.REQUIRED_TOOLS || EXIT_CRITERIA.DEFAULT_REQUIRED_TOOLS)
     .split(',')
     .map(t => t.trim());
 
-  // Bug deduplication configuration
-  const similarityThreshold = parseFloat(process.env.SIMILARITY_THRESHOLD || '0.6');
-  const enablePatternMatching = process.env.ENABLE_PATTERN_MATCHING !== 'false';
-  const enableSemanticMatching = process.env.ENABLE_SEMANTIC_MATCHING !== 'false';
+  // Bug deduplication configuration - use config defaults
+  const similarityThreshold = parseFloat(
+    process.env.SIMILARITY_THRESHOLD || String(DEDUPLICATION.DEFAULT_SIMILARITY_THRESHOLD)
+  );
+  const enablePatternMatching =
+    process.env.ENABLE_PATTERN_MATCHING !== 'false'
+      ? DEDUPLICATION.DEFAULT_ENABLE_PATTERN_MATCHING
+      : false;
+  const enableSemanticMatching =
+    process.env.ENABLE_SEMANTIC_MATCHING !== 'false'
+      ? DEDUPLICATION.DEFAULT_ENABLE_SEMANTIC_MATCHING
+      : false;
 
   // LLM configuration
   const llmProvider = (process.env.LLM_PROVIDER || 'openai') as LLMProvider;

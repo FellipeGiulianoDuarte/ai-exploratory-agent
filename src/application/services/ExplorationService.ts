@@ -18,7 +18,7 @@ import { NavigationPlanner } from './NavigationPlanner';
 import { BugDeduplicationService } from './BugDeduplicationService';
 import { PageExplorationContext } from './PageExplorationContext';
 import { LoopDetectionService } from './LoopDetectionService';
-import { FindingProcessor } from './FindingProcessor';
+import { FindingsProcessor } from './FindingsProcessor';
 import { ProgressReporter } from './ProgressReporter';
 import { loggers } from '../../infrastructure/logging';
 
@@ -195,7 +195,7 @@ export class ExplorationService {
 
   // Modular services for loop detection, finding processing, and progress reporting
   private loopDetection: LoopDetectionService;
-  private findingProcessor: FindingProcessor;
+  private findingsProcessor: FindingsProcessor;
   private progressReporter: ProgressReporter;
 
   // Track steps on current URL for exit criteria
@@ -244,7 +244,10 @@ export class ExplorationService {
       toolLoopThreshold: 3,
       actionLoopThreshold: this.config.actionLoopMaxRepetitions ?? 2,
     });
-    this.findingProcessor = new FindingProcessor();
+    this.findingsProcessor = new FindingsProcessor({
+      bugDeduplication: this.bugDeduplication,
+      pageContext: this.pageContext,
+    });
     this.progressReporter = new ProgressReporter();
 
     // Initialize personas if enabled
@@ -725,58 +728,21 @@ export class ExplorationService {
 
         // Check for observed issues in the decision and create findings
         if (decision.observedIssues && decision.observedIssues.length > 0) {
-          // Process issues through FindingProcessor - get only valid (non-false-positive) issues
-          const validIssues = this.findingProcessor.getValidIssues(decision.observedIssues);
+          // Process issues through FindingsProcessor - handles validation, deduplication, and Finding creation
+          const processedFindings = this.findingsProcessor.processObservedIssues(
+            decision,
+            session.id,
+            session.currentStep,
+            llmPageContext
+          );
 
-          for (const processedIssue of validIssues) {
-            // Check for duplicates using bug deduplication
-            const duplicateId = this.bugDeduplication.isDuplicate(
-              processedIssue.issue,
-              llmPageContext.url
-            );
-            if (duplicateId) {
-              // Skip duplicate
-              continue;
+          // Save non-duplicate findings and add to session
+          for (const processed of processedFindings) {
+            if (!processed.isDuplicate) {
+              await this.findingsRepository.save(processed.finding);
+              session.addFinding(processed.finding.id);
+              this.pageContext.recordBugFound();
             }
-
-            // Get steps to reproduce from page context
-            const stepsToReproduce = this.pageContext.getStepsToReproduce();
-
-            // Create description with steps to reproduce
-            const fullDescription = `${processedIssue.issue}\n\n**Steps to Reproduce:**\n${stepsToReproduce.join('\n')}`;
-
-            const finding = Finding.create({
-              sessionId: session.id,
-              stepNumber: session.currentStep,
-              type: processedIssue.type,
-              title: `${this.findingProcessor.getIssueTitlePrefix(processedIssue.type)}: ${processedIssue.issue.substring(0, 50)}`,
-              description: fullDescription,
-              pageUrl: llmPageContext.url,
-              pageTitle: llmPageContext.title,
-              severity: processedIssue.severity,
-              metadata: {
-                stepsToReproduce,
-                pageActionsCount: this.pageContext.getActionCount(),
-              },
-            });
-            await this.findingsRepository.save(finding);
-            session.addFinding(finding.id);
-
-            // Register with deduplication service
-            this.bugDeduplication.registerBug(
-              finding.id,
-              finding.title,
-              processedIssue.issue,
-              processedIssue.severity,
-              llmPageContext.url,
-              stepsToReproduce
-            );
-
-            // Track bug found on page
-            this.pageContext.recordBugFound();
-
-            // Use ProgressReporter for finding output
-            this.progressReporter.printFinding(processedIssue.severity, processedIssue.issue);
           }
         }
       }
