@@ -152,6 +152,7 @@ ai-exploratory-agent/
     └── prompts/                # Logged LLM prompts
 
 ## Architecture Overview
+```
 
 The project follows **Clean Architecture** principles with **Domain-Driven Design** and **Dependency Injection**:
 
