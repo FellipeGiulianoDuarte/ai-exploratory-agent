@@ -219,17 +219,30 @@ export function buildDecisionPrompt(
   tools: Array<{ name: string; description: string }>,
   objective?: string,
   urlQueueContext?: string,
-  reportedBugsSummary?: string
+  reportedBugsSummary?: string,
+  repetitionWarning?: string
 ): string {
   const config = getPromptConfig();
 
   // Format elements
   const elementsText = pageContext.elements
     .slice(0, config.context.maxElements)
-    .map(
-      (el, i) =>
-        `${i + 1}. [${el.type}] ${el.selector} - "${el.text.substring(0, 50)}"${el.isVisible ? '' : ' (hidden)'}`
-    )
+    .map((el, i) => {
+      const interactions = (pageContext as any).elementInteractions?.get(el.selector);
+      // Format interaction to be very visible to the LLM
+      let stateTag = '';
+      if (interactions && interactions.length > 0) {
+        const lastInteraction = interactions[interactions.length - 1];
+        if (lastInteraction.startsWith('filled:')) {
+          stateTag = ` [ALREADY FILLED: ${lastInteraction.replace('filled: ', '')}]`;
+        } else if (lastInteraction.startsWith('selected:')) {
+          stateTag = ` [ALREADY SELECTED: ${lastInteraction.replace('selected: ', '')}]`;
+        } else {
+          stateTag = ` [ALREADY INTERACTED: ${lastInteraction}]`;
+        }
+      }
+      return `${i + 1}. [${el.type}] ${el.selector} - "${el.text.substring(0, 50)}"${el.isVisible ? '' : ' (hidden)'}${stateTag}`;
+    })
     .join('\n');
 
   // Format history with more detail about tool actions
@@ -312,6 +325,27 @@ Analyze the current page state and decide on the next action to take.
 **AVOID REPETITION**: Check your history - don't repeat the same action on the same page.
 
 ${
+  repetitionWarning
+    ? `> [!IMPORTANT]
+> **REPETITION WARNING**: ${repetitionWarning}
+> You MUST choose a different strategy immediately.
+`
+    : ''
+}
+
+## Strategy Planning (REQUIRED)
+If you are on a page with forms or interactive elements (Auth, Data Entry), you MUST define a Strategy in your \`thought_process\` before acting.
+1. **Validation Test**: "Strategy: Test validation by submitting empty/invalid form."
+2. **Happy Path**: "Strategy: Test success path by filling valid credentials."
+3. **Boundary Test**: "Strategy: Test boundary condition with max length string."
+4. **Navigation**: "Strategy: Navigate to unexplored section X."
+
+**LOOP PREVENTION RULES:**
+- Do NOT click the same button multiple times unless verifying a race condition.
+- Do NOT fill the same field with the same value if it is marked as [ALREADY FILLED].
+- If an action failed, do NOT repeat it exactly. Change the value or the element.
+
+${
   urlQueueContext
     ? `## URL Discovery Queue
 ${urlQueueContext}
@@ -339,21 +373,7 @@ When reporting bugs in "observedIssues", ONLY report REAL bugs you can see RIGHT
 
 Each bug report should be a clear, specific statement of what IS wrong, not what MIGHT be wrong.
 
-Respond with a JSON object:
-\`\`\`json
-{
-  "action": "click|fill|navigate|select|hover|scroll|back|refresh|tool|done",
-  "selector": "CSS selector (if applicable)",
-  "value": "value to use (if applicable)",
-  "toolName": "tool name (if action is 'tool')",
-  "toolParams": {},
-  "reasoning": "explanation of your decision",
-  "confidence": 0.0-1.0,
-  "hypothesis": "what you're testing",
-  "expectedOutcome": "what you expect to happen",
-  "observedIssues": ["ONLY include confirmed bugs you can see - be specific about what and where"]
-}
-\`\`\``;
+Respond with a JSON object adhering to the ActionDecision schema.\`\``;
 }
 
 import { PersonaAnalysis, PersonaSuggestion } from '../../domain/personas/TestingPersona';
@@ -412,7 +432,11 @@ export function buildDecisionPromptWithPersonas(
       const suggestionsText = topSuggestions
         .map((s, i) => {
           const actionStr = formatSuggestionAction(s);
-          return `  ${i + 1}. ${actionStr}\n     Reasoning: ${s.reasoning}\n     Risk: ${s.riskLevel}, Confidence: ${Math.round(s.confidence * 100)}%`;
+          return `  ${i + 1}. ${actionStr}
+     Intent: ${s.intent}
+     Verification: ${s.verification}
+     Reasoning: ${s.reasoning}
+     Risk: ${s.riskLevel}, Confidence: ${Math.round(s.confidence * 100)}%`;
         })
         .join('\n');
 
@@ -449,10 +473,11 @@ function formatSuggestionAction(suggestion: PersonaSuggestion): string {
   const action = suggestion.action;
 
   switch (action.action) {
-    case 'fill':
+    case 'fill': {
       const displayValue =
         (action.value?.length || 0) > 30 ? action.value?.substring(0, 30) + '...' : action.value;
       return `FILL "${action.selector}" with "${displayValue}"`;
+    }
     case 'click':
       return `CLICK "${action.selector}"`;
     case 'navigate':
@@ -480,16 +505,7 @@ Title: {{title}}
 Analyze this finding and provide:
 1. Severity: critical, high, medium, or low
 2. Description: Clear explanation of the issue
-3. Recommendation: How to fix or mitigate
-
-Respond in JSON format:
-\`\`\`json
-{
-  "severity": "critical|high|medium|low",
-  "description": "...",
-  "recommendation": "..."
-}
-\`\`\``;
+3. Recommendation: How to fix or mitigate`;
 
 /**
  * Prompt for generating session summary.

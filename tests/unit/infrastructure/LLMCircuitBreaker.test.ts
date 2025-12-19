@@ -268,7 +268,7 @@ describe('LLMCircuitBreaker', () => {
       expect(status['primary'].state).toBe('open');
 
       // Wait for reset timeout
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Try again - circuit should transition to half-open when we call getAvailableProvider
       try {
@@ -322,7 +322,7 @@ describe('LLMCircuitBreaker', () => {
       expect(status['primary'].state).toBe('open');
 
       // Wait for reset timeout
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Now primary recovers (callCount > 1)
       await circuitBreaker.decideNextAction({} as LLMDecisionRequest);

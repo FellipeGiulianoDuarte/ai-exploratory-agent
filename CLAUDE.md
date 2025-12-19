@@ -150,6 +150,42 @@ while (session.isRunning) {
 }
 ```
 
+### Multi-Agent Architecture (State Machine + Supervisor Pattern)
+
+The exploration loop can operate in two modes:
+
+**Single-Agent Mode**: Uses `ExplorationService.explore()` with the state machine directly.
+
+**Multi-Agent Mode**: Uses `AgentSupervisor.explore()` to coordinate multiple agents exploring different pages in parallel.
+
+#### State Machine per Agent
+
+Each agent uses an `ExplorationStateMachine` with 11 states:
+
+```
+INIT → EXTRACTING_PAGE → COLLECTING_SUGGESTIONS → GETTING_LLM_DECISION
+   → VALIDATING_DECISION → EXECUTING_ACTION → PROCESSING_FINDINGS
+   → CHECKING_EXIT → (loop back or DONE)
+```
+
+Key components:
+- `ExplorationState` - Enum defining all states and valid transitions
+- `AgentContext` - Encapsulates all per-agent state
+- `StateHandler` - Interface for handlers that process each state
+- `ExplorationStateMachine` - Orchestrates state transitions
+
+Located at: `src/application/services/agent/`
+
+#### Supervisor Pattern
+
+For multi-agent coordination:
+- `AgentSupervisor` - Spawns and coordinates multiple agents
+- `WorkQueue` - Priority queue for page tasks
+- `SharedExplorationState` - Thread-safe shared state (visited URLs, findings)
+
+Located at: `src/application/services/supervisor/`
+
+
 ### Human-in-the-Loop Checkpoints
 
 The agent pauses for human input at:

@@ -226,12 +226,13 @@ export class DropdownValidatorTool extends BaseTool<
     }
 
     // Create issues for each problem type found
-    for (const [type, options] of problematicOptionsByType.entries()) {
-      const severity = this.determineSeverity(type as any);
+    for (const [typeRaw, options] of problematicOptionsByType.entries()) {
+      const type = typeRaw as DropdownIssue['type'];
+      const severity = this.determineSeverity(type);
       issues.push({
         selector: select.selector,
         label: select.label,
-        type: type as any,
+        type,
         severity,
         problematicOptions: options,
         totalOptions: select.options.length,

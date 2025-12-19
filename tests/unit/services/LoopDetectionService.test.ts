@@ -135,6 +135,39 @@ describe('LoopDetectionService', () => {
       expect(result.isLoop).toBe(false);
     });
 
+    it('should handle non-string value types without throwing', () => {
+      // Test with value as object (LLM might return wrong type)
+      const decision = createAction({
+        action: 'fill',
+        selector: '#input',
+        value: { foo: 'bar' } as any, // Simulate LLM returning wrong type
+      });
+
+      // Should not throw error
+      expect(() => service.recordAction(decision)).not.toThrow();
+      expect(() => service.detectActionLoop(decision)).not.toThrow();
+
+      // Test with value as number
+      const decision2 = createAction({
+        action: 'fill',
+        selector: '#input',
+        value: 123 as any,
+      });
+
+      expect(() => service.recordAction(decision2)).not.toThrow();
+      expect(() => service.detectActionLoop(decision2)).not.toThrow();
+
+      // Test with value as array
+      const decision3 = createAction({
+        action: 'fill',
+        selector: '#input',
+        value: ['test'] as any,
+      });
+
+      expect(() => service.recordAction(decision3)).not.toThrow();
+      expect(() => service.detectActionLoop(decision3)).not.toThrow();
+    });
+
     it('should detect loop when threshold reached', () => {
       const decision = createAction({
         selector: '#button',
@@ -166,6 +199,33 @@ describe('LoopDetectionService', () => {
 
       const result = service.detectActionLoop(newDecision);
       expect(result.isLoop).toBe(false);
+    });
+
+    it('should distinguish fill actions with different values', () => {
+      // Record fill with "value1"
+      service.recordAction(createAction({ action: 'fill', selector: '#input', value: 'value1' }));
+      service.recordAction(createAction({ action: 'fill', selector: '#input', value: 'value1' }));
+      service.recordAction(createAction({ action: 'fill', selector: '#input', value: 'value1' }));
+
+      // 4th action with "value2" should NOT be a loop (assuming threshold 4)
+      const diffValueResult = service.detectActionLoop(
+        createAction({
+          action: 'fill',
+          selector: '#input',
+          value: 'value2',
+        })
+      );
+      expect(diffValueResult.isLoop).toBe(false);
+
+      // 4th action with empty string "" should NOT be a loop
+      const emptyValueResult = service.detectActionLoop(
+        createAction({
+          action: 'fill',
+          selector: '#input',
+          value: '',
+        })
+      );
+      expect(emptyValueResult.isLoop).toBe(false);
     });
   });
 

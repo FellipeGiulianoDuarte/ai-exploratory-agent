@@ -30,38 +30,7 @@ export interface NavigationSuggestion {
 }
 
 // Workflow dependencies - pages that should be visited after others
-// TODO: Use these for smarter prerequisite checking
-/*
-const WORKFLOW_DEPENDENCIES: Record<string, string[]> = {
-  // User pages require authentication
-  '/profile': ['/login', '/signin', '/auth/login', '/register', '/signup'],
-  '/settings': ['/login', '/signin', '/auth/login'],
-  '/dashboard': ['/login', '/signin', '/auth/login'],
-  '/account': ['/login', '/signin', '/auth/login'],
-  '/my-orders': ['/login', '/signin', '/auth/login'],
-  '/order-history': ['/login', '/signin', '/auth/login'],
-  
-  // Checkout requires cart
-  '/checkout': ['/cart'],
-  '/payment': ['/cart', '/checkout'],
-  
-  // Login should come after register
-  '/login': ['/register', '/signup'],
-  '/signin': ['/register', '/signup'],
-  '/auth/login': ['/auth/register', '/register', '/signup'],
-};
-
-// Category priority for exploration order
-const CATEGORY_PRIORITY: URLCategory[] = [
-  'auth',      // Register/Login first
-  'product',   // Main features
-  'cart',      // Shopping flow
-  'user',      // User-specific (after auth)
-  'admin',     // Admin (if accessible)
-  'info',      // Informational last
-  'other',     // Everything else
-];
-*/
+// Future implementation can use these for smarter prerequisite checking
 
 export class NavigationPlanner {
   private urlDiscovery: URLDiscoveryService;

@@ -26,6 +26,8 @@ export type ActionType =
 export interface ActionDecision {
   /** Type of action to perform */
   action: ActionType;
+  /** Mental scratchpad for reasoning process */
+  thought_process?: string;
   /** Target element selector (for click, fill, etc.) */
   selector?: string;
   /** Value to use (for fill, select, navigate) */

@@ -11,6 +11,8 @@ import {
 import { CLIInteractionAdapter } from '../cli/CLIInteractionAdapter';
 import { loggers } from '../logging';
 
+import { ProgressReporter } from '../../application/services/ProgressReporter';
+
 // Type alias for exploration event types
 type ExplorationEventHandler<T extends DomainEvent> = EventHandler<T>;
 
@@ -20,14 +22,21 @@ type ExplorationEventHandler<T extends DomainEvent> = EventHandler<T>;
  */
 export class ExplorationEventHandlers {
   private cli: CLIInteractionAdapter;
+  private progressReporter: ProgressReporter;
   private eventBus: EventBus;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlers: Map<string, EventHandler<any>> = new Map();
   private verbose: boolean;
 
-  constructor(eventBus: EventBus, cli: CLIInteractionAdapter, verbose: boolean = false) {
+  constructor(
+    eventBus: EventBus,
+    cli: CLIInteractionAdapter,
+    progressReporter: ProgressReporter,
+    verbose: boolean = false
+  ) {
     this.eventBus = eventBus;
     this.cli = cli;
+    this.progressReporter = progressReporter;
     this.verbose = verbose;
   }
 
@@ -69,7 +78,7 @@ export class ExplorationEventHandlers {
    * Handle session started event.
    */
   private handleSessionStarted(event: SessionStartedEvent): void {
-    this.cli.displayStart(event.targetUrl, event.objective || 'General exploration');
+    this.progressReporter.printStart(event.targetUrl, event.objective || 'General exploration');
 
     if (this.verbose) {
       loggers.event.info(`Session ${event.aggregateId} started`);
@@ -80,7 +89,7 @@ export class ExplorationEventHandlers {
    * Handle session ended event.
    */
   private handleSessionEnded(event: SessionEndedEvent): void {
-    this.cli.displayEnd({
+    this.progressReporter.printEnd({
       totalSteps: event.totalSteps,
       findings: event.totalFindings,
       duration: Date.now() - event.timestamp.getTime(), // Approximate
@@ -97,7 +106,7 @@ export class ExplorationEventHandlers {
    */
   private handleStepCompleted(event: StepCompletedEvent): void {
     if (this.verbose) {
-      this.cli.displayStep(event.stepNumber, event.action);
+      this.progressReporter.printStepResult(event.stepNumber, event.action.action, event.success);
       loggers.event.info(
         `Step ${event.stepNumber} completed: ${event.success ? 'success' : 'failed'}`
       );
@@ -108,7 +117,10 @@ export class ExplorationEventHandlers {
    * Handle finding discovered event.
    */
   private handleFindingDiscovered(event: FindingDiscoveredEvent): void {
-    this.cli.displayFinding(event.findingType, event.severity, event.description);
+    this.progressReporter.printFinding(
+      (event.severity as any) || 'medium', // Map string to enum if needed, or update type
+      event.description
+    );
 
     if (this.verbose) {
       loggers.event.info(`Finding discovered: ${event.findingType} - ${event.description}`);
@@ -146,12 +158,16 @@ export class ExplorationEventHandlers {
 /**
  * Create and wire up all event handlers.
  */
+/**
+ * Create and wire up all event handlers.
+ */
 export function wireUpEventHandlers(
   eventBus: EventBus,
   cli: CLIInteractionAdapter,
+  progressReporter: ProgressReporter,
   verbose: boolean = false
 ): ExplorationEventHandlers {
-  const handlers = new ExplorationEventHandlers(eventBus, cli, verbose);
+  const handlers = new ExplorationEventHandlers(eventBus, cli, progressReporter, verbose);
   handlers.register();
   return handlers;
 }

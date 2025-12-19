@@ -37,5 +37,13 @@ export interface SessionRepository {
   /**
    * Get the most recent session (for resuming).
    */
+  /**
+   * Get the most recent session (for resuming).
+   */
   findMostRecent(): Promise<ExplorationSession | null>;
+
+  /**
+   * Get the base directory where sessions are stored.
+   */
+  getBaseDir(): string;
 }

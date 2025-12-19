@@ -14,9 +14,7 @@ import {
 describe('ExplorationConfig', () => {
   describe('EXPLORATION constants', () => {
     it('should have default target URL', () => {
-      expect(EXPLORATION.DEFAULT_TARGET_URL).toBe(
-        'https://with-bugs.practicesoftwaretesting.com'
-      );
+      expect(EXPLORATION.DEFAULT_TARGET_URL).toBe('https://with-bugs.practicesoftwaretesting.com');
     });
 
     it('should have default max steps', () => {
@@ -74,11 +72,11 @@ describe('ExplorationConfig', () => {
 
   describe('EXIT_CRITERIA constants', () => {
     it('should have default max actions per page', () => {
-      expect(EXIT_CRITERIA.DEFAULT_MAX_ACTIONS_PER_PAGE).toBe(8);
+      expect(EXIT_CRITERIA.DEFAULT_MAX_ACTIONS_PER_PAGE).toBe(20);
     });
 
     it('should have default max time per page', () => {
-      expect(EXIT_CRITERIA.DEFAULT_MAX_TIME_PER_PAGE).toBe(60000);
+      expect(EXIT_CRITERIA.DEFAULT_MAX_TIME_PER_PAGE).toBe(600000);
     });
 
     it('should have default min element interactions', () => {
@@ -110,7 +108,7 @@ describe('ExplorationConfig', () => {
 
   describe('LOOP_DETECTION constants', () => {
     it('should have default max action repetitions', () => {
-      expect(LOOP_DETECTION.DEFAULT_MAX_ACTION_REPETITIONS).toBe(2);
+      expect(LOOP_DETECTION.DEFAULT_MAX_ACTION_REPETITIONS).toBe(3);
     });
   });
 });

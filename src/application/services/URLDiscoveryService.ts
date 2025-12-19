@@ -71,8 +71,8 @@ const SIGNUP_PATTERNS = [/\/(register|signup|sign-up)/i];
 const LOGIN_PATTERNS = [/\/(login|signin|sign-in)/i];
 
 const HOME_PATTERNS = [
-  /^https?:\/\/[^\/]+\/?$/i, // Matches root URL (with or without trailing slash)
-  /^https?:\/\/[^\/]+\/#\/?$/i, // Matches SPA root routes: https://example.com/#/ or https://example.com/#
+  /^https?:\/\/[^/]+\/?$/i, // Matches root URL (with or without trailing slash)
+  /^https?:\/\/[^/]+\/#\/?$/i, // Matches SPA root routes: https://example.com/#/ or https://example.com/#
 ];
 
 const CONTACT_PATTERNS = [/\/contact/i];
@@ -343,36 +343,38 @@ export class URLDiscoveryService {
       return { priority: 'medium', score: 45 };
     }
 
-    // Priority 7: Contact page (score: 65)
+    // Priority 7: Contact page (score: 85 - Low priority)
     for (const pattern of CONTACT_PATTERNS) {
-      if (pattern.test(url)) {
-        return { priority: 'medium', score: 65 };
-      }
-    }
-
-    // Priority 8: About page (score: 75)
-    for (const pattern of ABOUT_PATTERNS) {
-      if (pattern.test(url)) {
-        return { priority: 'low', score: 75 };
-      }
-    }
-
-    // Priority 9: Other info pages (score: 80)
-    for (const pattern of INFO_LOW_PRIORITY_PATTERNS) {
-      if (pattern.test(url)) {
-        return { priority: 'low', score: 80 };
-      }
-    }
-
-    // Priority 10: Very low priority (score: 85)
-    for (const pattern of VERY_LOW_PRIORITY_PATTERNS) {
       if (pattern.test(url)) {
         return { priority: 'low', score: 85 };
       }
     }
 
-    // Default: medium priority (score: 50)
-    return { priority: 'medium', score: 50 };
+    // Priority 8: About page (score: 90 - Very Low priority)
+    for (const pattern of ABOUT_PATTERNS) {
+      if (pattern.test(url)) {
+        return { priority: 'low', score: 90 };
+      }
+    }
+
+    // Priority 9: Other info pages (score: 95 - Lowest priority)
+    for (const pattern of INFO_LOW_PRIORITY_PATTERNS) {
+      if (pattern.test(url)) {
+        return { priority: 'low', score: 95 };
+      }
+    }
+
+    // Priority 10: Very low priority (score: 98)
+    for (const pattern of VERY_LOW_PRIORITY_PATTERNS) {
+      if (pattern.test(url)) {
+        return { priority: 'low', score: 98 };
+      }
+    }
+
+    // Default: medium-low priority (score: 60)
+    // This ensures discovered "random" pages are lower than Core Features (35-45)
+    // but higher than pure Info pages (85+)
+    return { priority: 'medium', score: 60 };
   }
 
   /**

@@ -150,7 +150,7 @@ export interface BrowserPort {
    * @param script - JavaScript code to execute
    * @returns Result of the script execution
    */
-  evaluate<T>(script: string | (() => T)): Promise<T>;
+  evaluate<T, R = unknown>(script: string | ((args: R) => T), args?: R): Promise<T>;
 
   /**
    * Checks if the browser is initialized and ready.

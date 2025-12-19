@@ -14,7 +14,10 @@ import { ActionDecision, ExplorationHistoryEntry } from '../../domain/exploratio
  * LLMPageContext is an alias for PageContext from domain layer.
  * Kept for backward compatibility.
  */
-export type LLMPageContext = PageContext;
+export interface LLMPageContext extends PageContext {
+  /** Map of element selectors to their interaction history descriptions */
+  elementInteractions?: Map<string, string[]>;
+}
 
 /**
  * Request to the LLM for deciding next action.
@@ -37,7 +40,10 @@ export interface LLMDecisionRequest {
   /** URL discovery queue context (optional) */
   urlQueueContext?: string;
   /** Summary of already reported bugs to avoid duplicates (optional) */
+  /** Summary of already reported bugs to avoid duplicates (optional) */
   reportedBugsSummary?: string;
+  /** Warning to inject if loop or repetition is detected (optional) */
+  repetitionWarning?: string;
 }
 
 /**

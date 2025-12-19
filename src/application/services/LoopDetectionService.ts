@@ -188,9 +188,11 @@ export class LoopDetectionService {
       parts.push(decision.selector);
     }
 
-    if (decision.value) {
+    if (decision.value !== undefined && decision.value !== null) {
       // Normalize value to catch similar inputs
-      const normalizedValue = decision.value.toLowerCase().replace(/['"]/g, '').substring(0, 50);
+      // Handle case where value might not be a string (LLM may return wrong type)
+      const valueStr = typeof decision.value === 'string' ? decision.value : String(decision.value);
+      const normalizedValue = valueStr.toLowerCase().replace(/['"]/g, '').substring(0, 50);
       parts.push(normalizedValue);
     }
 

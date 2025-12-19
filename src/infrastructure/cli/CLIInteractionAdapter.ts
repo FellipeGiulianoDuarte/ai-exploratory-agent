@@ -5,8 +5,9 @@ import {
   HumanGuidance,
 } from '../../domain/exploration/ExplorationSession';
 import { ActionDecision } from '../../application/ports/LLMPort';
-import { HumanInteractionCallback } from '../../application/services/ExplorationService';
+import { HumanInteractionCallback } from '../../application/ports/ExplorationTypes';
 import { FindingsRepository } from '../../application/ports/FindingsRepository';
+import { getLogger } from '../logging/Logger';
 
 /**
  * Colors for terminal output.
@@ -68,6 +69,7 @@ function formatAction(decision: ActionDecision): string {
 export class CLIInteractionAdapter implements HumanInteractionCallback {
   private rl: readline.Interface | null = null;
   private findingsRepository?: FindingsRepository;
+  private logger = getLogger('CLI');
 
   constructor(findingsRepository?: FindingsRepository) {
     this.findingsRepository = findingsRepository;
@@ -112,7 +114,7 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
    * Display a separator line.
    */
   private separator(): void {
-    console.log(`\n${colors.dim}${'─'.repeat(60)}${colors.reset}\n`);
+    this.logger.info(`${colors.dim}${'─'.repeat(60)}${colors.reset}`);
   }
 
   /**
@@ -121,27 +123,29 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
   private displaySessionSummary(session: ExplorationSession): void {
     const stats = session.getStats();
 
-    console.log(`${colors.bold}📊 Exploration Summary${colors.reset}`);
-    console.log(`   Steps completed: ${colors.cyan}${stats.totalSteps}${colors.reset}`);
-    console.log(`   Current URL: ${colors.blue}${session.currentUrl}${colors.reset}`);
-    console.log(`   Findings: ${colors.yellow}${stats.totalFindings}${colors.reset}`);
-    console.log(`   Duration: ${colors.dim}${Math.round(stats.duration / 1000)}s${colors.reset}`);
+    this.logger.info(`${colors.bold}📊 Exploration Summary${colors.reset}`);
+    this.logger.info(`   Steps completed: ${colors.cyan}${stats.totalSteps}${colors.reset}`);
+    this.logger.info(`   Current URL: ${colors.blue}${session.currentUrl}${colors.reset}`);
+    this.logger.info(`   Findings: ${colors.yellow}${stats.totalFindings}${colors.reset}`);
+    this.logger.info(
+      `   Duration: ${colors.dim}${Math.round(stats.duration / 1000)}s${colors.reset}`
+    );
   }
 
   /**
    * Display proposed action.
    */
   private displayProposedAction(decision: ActionDecision): void {
-    console.log(`\n${colors.bold}🎯 Proposed Next Action${colors.reset}`);
-    console.log(`   Action: ${formatAction(decision)}`);
-    console.log(`   Confidence: ${this.formatConfidence(decision.confidence)}`);
-    console.log(`   Reasoning: ${colors.dim}${decision.reasoning}${colors.reset}`);
+    this.logger.info(`\n${colors.bold}🎯 Proposed Next Action${colors.reset}`);
+    this.logger.info(`   Action: ${formatAction(decision)}`);
+    this.logger.info(`   Confidence: ${this.formatConfidence(decision.confidence)}`);
+    this.logger.info(`   Reasoning: ${colors.dim}${decision.reasoning}${colors.reset}`);
 
     if (decision.hypothesis) {
-      console.log(`   Hypothesis: ${colors.dim}${decision.hypothesis}${colors.reset}`);
+      this.logger.info(`   Hypothesis: ${colors.dim}${decision.hypothesis}${colors.reset}`);
     }
     if (decision.expectedOutcome) {
-      console.log(`   Expected: ${colors.dim}${decision.expectedOutcome}${colors.reset}`);
+      this.logger.info(`   Expected: ${colors.dim}${decision.expectedOutcome}${colors.reset}`);
     }
   }
 
@@ -172,12 +176,12 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
       return;
     }
 
-    console.log(`\n${colors.bold}📜 Recent Actions${colors.reset}`);
+    this.logger.info(`\n${colors.bold}📜 Recent Actions${colors.reset}`);
     for (const entry of recent) {
       const status = entry.success
         ? `${colors.green}✓${colors.reset}`
         : `${colors.red}✗${colors.reset}`;
-      console.log(`   ${status} Step ${entry.step}: ${formatAction(entry.action)}`);
+      this.logger.info(`   ${status} Step ${entry.step}: ${formatAction(entry.action)}`);
     }
   }
 
@@ -191,8 +195,8 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
   ): Promise<HumanGuidance> {
     this.separator();
 
-    console.log(`${colors.bold}${colors.yellow}⚡ CHECKPOINT${colors.reset}`);
-    console.log(`   Reason: ${formatCheckpointReason(reason)}`);
+    this.logger.info(`${colors.bold}${colors.yellow}⚡ CHECKPOINT${colors.reset}`);
+    this.logger.info(`   Reason: ${formatCheckpointReason(reason)}`);
 
     this.displaySessionSummary(session);
     this.displayRecentHistory(session);
@@ -201,12 +205,13 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
       this.displayProposedAction(proposedAction);
     }
 
-    console.log(`\n${colors.bold}Options:${colors.reset}`);
-    console.log(`   ${colors.green}[c]${colors.reset} Continue exploration`);
-    console.log(`   ${colors.yellow}[g]${colors.reset} Provide guidance`);
-    console.log(`   ${colors.red}[s]${colors.reset} Stop exploration`);
-    console.log(`   ${colors.blue}[d]${colors.reset} Show detailed findings`);
+    this.logger.info(`\n${colors.bold}Options:${colors.reset}`);
+    this.logger.info(`   ${colors.green}[c]${colors.reset} Continue exploration`);
+    this.logger.info(`   ${colors.yellow}[g]${colors.reset} Provide guidance`);
+    this.logger.info(`   ${colors.red}[s]${colors.reset} Stop exploration`);
+    this.logger.info(`   ${colors.blue}[d]${colors.reset} Show detailed findings`);
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const input = await this.prompt(`\n${colors.bold}Your choice: ${colors.reset}`);
       const choice = input.toLowerCase();
@@ -217,26 +222,28 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
           return { action: 'continue' };
 
         case 'g':
-        case 'guidance':
+        case 'guidance': {
           const guidance = await this.prompt(
             `${colors.cyan}Enter guidance for the agent: ${colors.reset}`
           );
           if (guidance) {
-            console.log(`${colors.green}✓ Guidance recorded${colors.reset}`);
+            this.logger.info(`${colors.green}✓ Guidance recorded${colors.reset}`);
             return { action: 'continue', guidance };
           }
-          console.log(`${colors.yellow}No guidance provided, continuing...${colors.reset}`);
+          this.logger.info(`${colors.yellow}No guidance provided, continuing...${colors.reset}`);
           return { action: 'continue' };
+        }
 
         case 's':
-        case 'stop':
+        case 'stop': {
           const stopReason = await this.prompt(
             `${colors.cyan}Reason for stopping (optional): ${colors.reset}`
           );
-          console.log(
+          this.logger.info(
             `${colors.dim}Stopping: ${stopReason || 'User stopped exploration'}${colors.reset}`
           );
           return { action: 'stop' };
+        }
 
         case 'd':
         case 'details':
@@ -244,7 +251,9 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
           break;
 
         default:
-          console.log(`${colors.red}Invalid option. Please enter c, g, s, or d.${colors.reset}`);
+          this.logger.error(
+            `${colors.red}Invalid option. Please enter c, g, s, or d.${colors.reset}`
+          );
       }
     }
   }
@@ -255,10 +264,10 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
   private async displayDetailedFindings(session: ExplorationSession): Promise<void> {
     const stats = session.getStats();
 
-    console.log(`\n${colors.bold}🔍 Detailed Findings${colors.reset}`);
+    this.logger.info(`\n${colors.bold}🔍 Detailed Findings${colors.reset}`);
 
     if (stats.totalFindings === 0) {
-      console.log(`   ${colors.dim}No findings recorded yet.${colors.reset}`);
+      this.logger.info(`   ${colors.dim}No findings recorded yet.${colors.reset}`);
       return;
     }
 
@@ -267,12 +276,12 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
       const findings = await this.findingsRepository.findBySessionId(session.id);
 
       if (findings.length === 0) {
-        console.log(`   ${colors.dim}No findings recorded yet.${colors.reset}`);
+        this.logger.info(`   ${colors.dim}No findings recorded yet.${colors.reset}`);
         return;
       }
 
       for (const finding of findings) {
-        console.log(`\n${finding.summarize()}`);
+        this.logger.info(`\n${finding.summarize()}`);
       }
     } else {
       // Fallback: display finding IDs from session history
@@ -280,77 +289,8 @@ export class CLIInteractionAdapter implements HumanInteractionCallback {
       const allFindings = history.flatMap(h => h.findings || []);
 
       for (const finding of allFindings) {
-        console.log(`   • ${finding}`);
+        this.logger.info(`   • ${finding}`);
       }
     }
-  }
-
-  /**
-   * Display a message to the user.
-   */
-  displayMessage(message: string): void {
-    console.log(message);
-  }
-
-  /**
-   * Display exploration start message.
-   */
-  displayStart(url: string, objective: string): void {
-    this.separator();
-    console.log(`${colors.bold}${colors.green}🚀 Starting Exploration${colors.reset}`);
-    console.log(`   Target: ${colors.blue}${url}${colors.reset}`);
-    console.log(`   Objective: ${colors.dim}${objective}${colors.reset}`);
-    this.separator();
-  }
-
-  /**
-   * Display exploration end message.
-   */
-  displayEnd(result: {
-    totalSteps: number;
-    findings: number;
-    duration: number;
-    reason: string;
-  }): void {
-    this.separator();
-    console.log(`${colors.bold}${colors.green}✅ Exploration Complete${colors.reset}`);
-    console.log(`   Total steps: ${colors.cyan}${result.totalSteps}${colors.reset}`);
-    console.log(`   Findings: ${colors.yellow}${result.findings}${colors.reset}`);
-    console.log(`   Duration: ${colors.dim}${Math.round(result.duration / 1000)}s${colors.reset}`);
-    console.log(`   Stopped: ${colors.dim}${result.reason}${colors.reset}`);
-    this.separator();
-  }
-
-  /**
-   * Display a step being executed.
-   */
-  displayStep(stepNumber: number, action: ActionDecision): void {
-    const status = `${colors.dim}[Step ${stepNumber}]${colors.reset}`;
-    console.log(`${status} ${formatAction(action)}`);
-  }
-
-  /**
-   * Display a finding being discovered.
-   */
-  displayFinding(_type: string, severity: string, title: string): void {
-    let severityColor = colors.dim;
-    switch (severity) {
-      case 'critical':
-        severityColor = colors.red;
-        break;
-      case 'high':
-        severityColor = colors.yellow;
-        break;
-      case 'medium':
-        severityColor = colors.cyan;
-        break;
-      case 'low':
-        severityColor = colors.dim;
-        break;
-    }
-
-    console.log(
-      `   ${colors.yellow}🔎 Found:${colors.reset} ${severityColor}[${severity}]${colors.reset} ${title}`
-    );
   }
 }

@@ -112,11 +112,11 @@ describe('URLDiscoveryService - Priority System', () => {
 
       const discovered = await service.scanPage(mockBrowser, 'https://example.com');
 
-      expect(discovered[0].priorityScore).toBe(65);
-      expect(discovered[0].priority).toBe('medium');
+      expect(discovered[0].priorityScore).toBe(85);
+      expect(discovered[0].priority).toBe('low');
     });
 
-    it('should assign score 75 to about page', async () => {
+    it('should assign score 90 to about page', async () => {
       service.setBaseUrl('https://example.com');
 
       (mockBrowser.evaluate as jest.Mock).mockResolvedValue([
@@ -125,7 +125,7 @@ describe('URLDiscoveryService - Priority System', () => {
 
       const discovered = await service.scanPage(mockBrowser, 'https://example.com');
 
-      expect(discovered[0].priorityScore).toBe(75);
+      expect(discovered[0].priorityScore).toBe(90);
       expect(discovered[0].priority).toBe('low');
     });
 
@@ -164,7 +164,7 @@ describe('URLDiscoveryService - Priority System', () => {
 
       const discovered = await service.scanPage(mockBrowser, 'https://example.com');
 
-      expect(discovered[0].priorityScore).toBe(50);
+      expect(discovered[0].priorityScore).toBe(60);
       expect(discovered[0].priority).toBe('medium');
     });
   });
@@ -199,10 +199,10 @@ describe('URLDiscoveryService - Priority System', () => {
       expect(unvisited[2].priorityScore).toBe(25);
 
       expect(unvisited[3].normalizedUrl).toContain('/contact');
-      expect(unvisited[3].priorityScore).toBe(65);
+      expect(unvisited[3].priorityScore).toBe(85);
 
       expect(unvisited[4].normalizedUrl).toContain('/about');
-      expect(unvisited[4].priorityScore).toBe(75);
+      expect(unvisited[4].priorityScore).toBe(90);
     });
 
     it('should sort URLs with same priority by discovery time', async () => {

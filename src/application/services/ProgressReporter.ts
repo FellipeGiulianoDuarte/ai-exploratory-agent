@@ -67,6 +67,53 @@ export class ProgressReporter {
   }
 
   /**
+   * Print exploration start message.
+   */
+  printStart(url: string, objective: string): void {
+    const separator = `────────────────────────────────────────────────────────────`;
+    // eslint-disable-next-line no-console
+    console.log(`\n${separator}`);
+    // eslint-disable-next-line no-console
+    console.log(`🚀 Starting Exploration`);
+    // eslint-disable-next-line no-console
+    console.log(`   Target: ${url}`);
+    // eslint-disable-next-line no-console
+    console.log(`   Objective: ${objective}`);
+    // eslint-disable-next-line no-console
+    console.log(`${separator}\n`);
+
+    this.logger.info(`Starting exploration of ${url} with objective: ${objective}`);
+  }
+
+  /**
+   * Print exploration end message.
+   */
+  printEnd(result: {
+    totalSteps: number;
+    findings: number;
+    duration: number;
+    reason: string;
+  }): void {
+    const separator = `────────────────────────────────────────────────────────────`;
+    // eslint-disable-next-line no-console
+    console.log(`\n${separator}`);
+    // eslint-disable-next-line no-console
+    console.log(`✅ Exploration Complete`);
+    // eslint-disable-next-line no-console
+    console.log(`   Total steps: ${result.totalSteps}`);
+    // eslint-disable-next-line no-console
+    console.log(`   Findings: ${result.findings}`);
+    // eslint-disable-next-line no-console
+    console.log(`   Duration: ${Math.round(result.duration / 1000)}s`);
+    // eslint-disable-next-line no-console
+    console.log(`   Stopped: ${result.reason}`);
+    // eslint-disable-next-line no-console
+    console.log(`${separator}\n`);
+
+    this.logger.info(`Exploration completed: ${JSON.stringify(result)}`);
+  }
+
+  /**
    * Print persona suggestion information.
    */
   private printPersonaSuggestions(
@@ -142,6 +189,15 @@ export class ProgressReporter {
   }
 
   /**
+   * Print a completed step.
+   */
+  printStepResult(stepNumber: number, action: string, success: boolean): void {
+    const status = success ? '✓' : '✗';
+    // eslint-disable-next-line no-console
+    console.log(`[Step ${stepNumber}] ${status} ${action}`);
+  }
+
+  /**
    * Print loop detection result.
    */
   printLoopDetected(type: 'tool' | 'action', pattern: string, count: number): void {
@@ -199,7 +255,8 @@ export class ProgressReporter {
    */
   private getUrlPath(url: string): string {
     try {
-      return new URL(url).pathname;
+      const u = new URL(url);
+      return u.pathname + u.search + u.hash;
     } catch {
       return url;
     }

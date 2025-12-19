@@ -62,6 +62,21 @@ export class OpenAIAdapter implements LLMPort {
       : { max_tokens: maxTokens };
   }
 
+  /**
+   * Check if the model supports temperature parameter.
+   * Some models (o1, o3, gpt-5 series) don't support custom temperature.
+   */
+  private supportsTemperature(): boolean {
+    return !/^(o1|o3|o4|gpt-5)/.test(this.modelName);
+  }
+
+  /**
+   * Get temperature configuration if the model supports it.
+   */
+  private getTemperatureConfig(temperature: number): { temperature?: number } {
+    return this.supportsTemperature() ? { temperature } : {};
+  }
+
   async decideNextAction(
     request: LLMDecisionRequest,
     options?: LLMCompletionOptions
@@ -86,8 +101,14 @@ export class OpenAIAdapter implements LLMPort {
             request.tools,
             request.objective,
             request.urlQueueContext,
-            request.reportedBugsSummary
+            request.reportedBugsSummary,
+            request.repetitionWarning
           );
+
+    // Inject interaction history if available (type casting as we're extending the prompt context dynamically)
+    if (request.pageContext.elementInteractions) {
+      // already passed in context
+    }
 
     try {
       const response = await this.client.chat.completions.create({
@@ -96,12 +117,17 @@ export class OpenAIAdapter implements LLMPort {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
-        temperature: options?.temperature ?? 0.7,
+        ...this.getTemperatureConfig(options?.temperature ?? 0.7),
         ...this.getTokenConfig(options?.maxTokens ?? 4096),
         stop: options?.stopSequences,
+        response_format: { type: 'json_object' },
       });
 
       const text = response.choices[0]?.message?.content || '';
+
+      if (!text) {
+        throw new Error('Received empty response from OpenAI');
+      }
 
       // Parse the decision
       const decision = this.parseDecision(text);
@@ -142,7 +168,7 @@ export class OpenAIAdapter implements LLMPort {
       const response = await this.client.chat.completions.create({
         model: this.modelName,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
+        ...this.getTemperatureConfig(0.3),
         ...this.getTokenConfig(1024),
       });
 
@@ -194,7 +220,7 @@ export class OpenAIAdapter implements LLMPort {
       const response = await this.client.chat.completions.create({
         model: this.modelName,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.5,
+        ...this.getTemperatureConfig(0.5),
         ...this.getTokenConfig(2048),
       });
 
@@ -223,14 +249,14 @@ export class OpenAIAdapter implements LLMPort {
    * Parse the LLM response to extract ActionDecision.
    */
   private parseDecision(text: string): ActionDecision {
-    // Try to find JSON in the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in LLM response');
-    }
-
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      // sanitize potential markdown wrappers
+      const cleanText = text
+        .replace(/^```json\s*/, '')
+        .replace(/^```\s*/, '')
+        .replace(/```$/, '')
+        .trim();
+      const parsed = JSON.parse(cleanText);
 
       // Validate required fields
       if (!parsed.action) {
@@ -239,6 +265,7 @@ export class OpenAIAdapter implements LLMPort {
 
       return {
         action: parsed.action,
+        thought_process: parsed.thought_process,
         selector: parsed.selector,
         value: parsed.value,
         toolName: parsed.toolName,

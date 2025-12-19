@@ -51,3 +51,72 @@ flowchart LR
     click H href "src/infrastructure/tools/index.ts" "Tools index"
     click I href "src/infrastructure/persistence" "Repository location"
 ```
+
+## State Machine per Agent
+
+```mermaid
+stateDiagram-v2
+    [*] --> INIT
+    INIT --> EXTRACTING_PAGE
+    INIT --> ERROR
+
+    EXTRACTING_PAGE --> COLLECTING_SUGGESTIONS
+    EXTRACTING_PAGE --> ERROR
+
+    COLLECTING_SUGGESTIONS --> GETTING_LLM_DECISION
+    COLLECTING_SUGGESTIONS --> ERROR
+
+    GETTING_LLM_DECISION --> VALIDATING_DECISION
+    GETTING_LLM_DECISION --> WAITING_CHECKPOINT
+    GETTING_LLM_DECISION --> DONE
+    GETTING_LLM_DECISION --> ERROR
+
+    VALIDATING_DECISION --> EXECUTING_ACTION
+    VALIDATING_DECISION --> GETTING_LLM_DECISION: retry
+    VALIDATING_DECISION --> ERROR
+
+    EXECUTING_ACTION --> PROCESSING_FINDINGS
+    EXECUTING_ACTION --> ERROR
+
+    PROCESSING_FINDINGS --> CHECKING_EXIT
+    PROCESSING_FINDINGS --> WAITING_CHECKPOINT
+    PROCESSING_FINDINGS --> ERROR
+
+    CHECKING_EXIT --> EXTRACTING_PAGE: continue loop
+    CHECKING_EXIT --> DONE
+    CHECKING_EXIT --> ERROR
+
+    WAITING_CHECKPOINT --> GETTING_LLM_DECISION
+    WAITING_CHECKPOINT --> EXTRACTING_PAGE
+    WAITING_CHECKPOINT --> DONE
+    WAITING_CHECKPOINT --> ERROR
+
+    DONE --> [*]
+    ERROR --> [*]
+```
+
+## Multi-Agent Supervisor Pattern
+
+```mermaid
+flowchart TB
+    subgraph Supervisor[AgentSupervisor]
+        WQ[WorkQueue]
+        SS[SharedExplorationState]
+        WQ --> A1 & A2 & A3
+    end
+
+    subgraph A1[Agent 1]
+        SM1[State Machine]
+    end
+
+    subgraph A2[Agent 2]
+        SM2[State Machine]
+    end
+
+    subgraph A3[Agent N]
+        SM3[State Machine]
+    end
+
+    A1 & A2 & A3 --> SS
+    SS --> |discovered URLs| WQ
+```

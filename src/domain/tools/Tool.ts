@@ -1,4 +1,48 @@
-import { BrowserPort } from '../../application/ports/BrowserPort';
+/**
+ * Screenshot options for browser tools.
+ */
+export interface ToolScreenshotOptions {
+  /** File path to save the screenshot */
+  path?: string;
+  /** Whether to capture full page */
+  fullPage?: boolean;
+  /** Image type */
+  type?: 'png' | 'jpeg';
+  /** Quality for JPEG (0-100) */
+  quality?: number;
+}
+
+/**
+ * Minimal page state interface for tools.
+ * Keeps domain layer independent from application layer.
+ */
+export interface ToolPageState {
+  url: string;
+  title: string;
+  visibleText?: string;
+  consoleErrors?: string[];
+  networkErrors?: string[];
+}
+
+/**
+ * Minimal browser interface for tool execution.
+ * This avoids importing from application layer (BrowserPort) to maintain
+ * domain layer independence per DDD principles.
+ */
+export interface ToolBrowserAdapter {
+  /** Navigate to a URL */
+  navigate(url: string): Promise<{ success: boolean; duration: number }>;
+  /** Get current page URL */
+  getCurrentUrl(): Promise<string>;
+  /** Get the page title */
+  getTitle(): Promise<string>;
+  /** Take a screenshot */
+  screenshot(options?: ToolScreenshotOptions): Promise<string>;
+  /** Evaluate JavaScript in the page context */
+  evaluate<T>(fn: string | (() => T)): Promise<T>;
+  /** Extract minimal page state for tool analysis */
+  extractPageState(): Promise<ToolPageState>;
+}
 
 /**
  * Context provided to tools during execution.
@@ -6,7 +50,7 @@ import { BrowserPort } from '../../application/ports/BrowserPort';
  */
 export interface ToolContext {
   /** Browser adapter for page interactions */
-  browser: BrowserPort;
+  browser: ToolBrowserAdapter;
   /** Current page URL */
   currentUrl: string;
   /** Optional additional context data */

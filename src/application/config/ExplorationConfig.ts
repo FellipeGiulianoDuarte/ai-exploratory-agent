@@ -46,7 +46,7 @@ export const RETRY = {
  */
 export const LOOP_DETECTION = {
   /** Default max action repetitions before forcing alternative */
-  DEFAULT_MAX_ACTION_REPETITIONS: 2,
+  DEFAULT_MAX_ACTION_REPETITIONS: 3,
   /** Value length limit for action signature normalization */
   VALUE_SIGNATURE_LENGTH: 50,
 } as const;
@@ -56,9 +56,9 @@ export const LOOP_DETECTION = {
  */
 export const EXIT_CRITERIA = {
   /** Default max actions per page before moving on */
-  DEFAULT_MAX_ACTIONS_PER_PAGE: 8,
+  DEFAULT_MAX_ACTIONS_PER_PAGE: 20,
   /** Default max time per page in milliseconds */
-  DEFAULT_MAX_TIME_PER_PAGE: 60000,
+  DEFAULT_MAX_TIME_PER_PAGE: 600000,
   /** Default minimum element interactions before exit */
   DEFAULT_MIN_ELEMENT_INTERACTIONS: 3,
   /** Default exit after finding N bugs */
@@ -239,7 +239,7 @@ export const FINDING_PATTERNS = {
  */
 export const SEVERITY_KEYWORDS = {
   /** Keywords indicating LOW severity */
-  LOW: ['typo', 'misspell', 'spelling', 'contakt', 'should be'],
+  LOW: ['typo', 'misspell', 'spelling', 'should be'],
   /** Keywords indicating CRITICAL severity */
   CRITICAL: [
     'security',

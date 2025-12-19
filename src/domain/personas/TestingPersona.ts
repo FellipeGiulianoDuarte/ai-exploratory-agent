@@ -59,6 +59,12 @@ export interface PersonaSuggestion {
   /** Why this persona suggests this action */
   reasoning: string;
 
+  /** The specific intent behind this action (e.g., "Trigger validation error") */
+  intent: string;
+
+  /** How to verify if the action had the desired effect */
+  verification: string;
+
   /** Risk level of this test */
   riskLevel: 'safe' | 'moderate' | 'destructive';
 

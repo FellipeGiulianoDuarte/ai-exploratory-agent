@@ -78,7 +78,8 @@ export class PageExplorationContext {
   private startTime: Date = new Date();
   private actions: TrackedAction[] = [];
   private toolsRun: Set<string> = new Set();
-  private elementsInteracted: Set<string> = new Set();
+  // Map of selector -> list of interaction descriptions (e.g. "filled: john", "clicked")
+  private elementsInteracted: Map<string, string[]> = new Map();
   private formsSubmitted: number = 0;
   private bugsFoundOnPage: number = 0;
   private exitReason: string = '';
@@ -93,6 +94,10 @@ export class PageExplorationContext {
    */
   startNewPage(url: string, title: string): void {
     // Save stats from previous page if any
+    if (this.currentUrl) {
+      // Debug log can be removed later or replaced with logger
+      // console.log(`[PageContext] Resetting context. Old: ${this.currentUrl}, New: ${url}`);
+    }
     this.currentUrl = url;
     this.currentTitle = title;
     this.startTime = new Date();
@@ -119,7 +124,15 @@ export class PageExplorationContext {
 
     // Track element interaction
     if (action.selector) {
-      this.elementsInteracted.add(action.selector);
+      const interactions = this.elementsInteracted.get(action.selector) || [];
+      let desc: string = action.action;
+      if (action.action === 'fill' && action.value) {
+        desc = `filled: "${action.value}"`;
+      } else if (action.action === 'select' && action.value) {
+        desc = `selected: "${action.value}"`;
+      }
+      interactions.push(desc);
+      this.elementsInteracted.set(action.selector, interactions);
     }
 
     // Track tool usage
@@ -320,12 +333,19 @@ export class PageExplorationContext {
       url: this.currentUrl,
       actionsPerformed: this.actions.length,
       toolsRun: Array.from(this.toolsRun),
-      elementsInteracted: Array.from(this.elementsInteracted),
+      elementsInteracted: Array.from(this.elementsInteracted.keys()),
       formsSubmitted: this.formsSubmitted,
       bugsFound: this.bugsFoundOnPage,
       timeSpent: Date.now() - this.startTime.getTime(),
       exitReason: this.exitReason,
     };
+  }
+
+  /**
+   * Get interaction history map.
+   */
+  getInteractions(): Map<string, string[]> {
+    return this.elementsInteracted;
   }
 
   /**

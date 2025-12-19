@@ -117,6 +117,8 @@ ai-exploratory-agent/
 ├── src/
 │   ├── domain/                 # Core business logic
 │   │   ├── exploration/        # Session, Step, Finding entities
+│   │   ├── config/             # AppConfig interfaces
+│   │   ├── errors/             # Domain errors
 │   │   ├── browser/            # PageState, InteractiveElement
 │   │   ├── tools/              # Tool interface, ToolRegistry
 │   │   ├── personas/           # Testing personas
@@ -125,6 +127,8 @@ ai-exploratory-agent/
 │   │   ├── services/           # ExplorationService, ReportGenerator
 │   │   └── ports/              # Interface definitions
 │   ├── infrastructure/         # External integrations
+│   │   ├── config/             # ConfigFactory, Zod Schemas
+│   │   ├── di/                 # CompositionRoot (Dependency Injection)
 │   │   ├── browser/            # Playwright adapter
 │   │   ├── llm/                # OpenAI/Gemini/Anthropic adapters
 │   │   │   ├── prompts/        # Modular prompt architecture
@@ -143,15 +147,15 @@ ai-exploratory-agent/
 ├── screenshots/                # Evidence screenshots
 └── logs/                       # Prompt logs (for debugging)
     └── prompts/                # Logged LLM prompts
-```
 
 ## Architecture Overview
 
-The project follows **Clean Architecture** principles with **Domain-Driven Design**:
+The project follows **Clean Architecture** principles with **Domain-Driven Design** and **Dependency Injection**:
 
 ```
 ┌─────────────────────────────────────────────────┐
 │                 CLI / Main                      │
+│        (CompositionRoot & ConfigFactory)        │
 ├─────────────────────────────────────────────────┤
 │             Application Layer                   │
 │  ┌─────────────────┐  ┌──────────────────────┐  │
@@ -161,7 +165,7 @@ The project follows **Clean Architecture** principles with **Domain-Driven Desig
 │           │        Domain Layer                 │
 │  ┌────────▼────────┐  ┌──────────────────────┐  │
 │  │    Session      │  │       Finding        │  │
-│  │     Step        │  │       PageState      │  │
+│  │     Step        │  │       AppConfig      │  │
 │  │    Persona      │  │       Tool           │  │
 │  └─────────────────┘  └──────────────────────┘  │
 ├─────────────────────────────────────────────────┤
@@ -172,6 +176,7 @@ The project follows **Clean Architecture** principles with **Domain-Driven Desig
 │  └───────────┘ └───────────┘ └───────────────┘  │
 └─────────────────────────────────────────────────┘
 ```
+
 
 ## Design Decisions and Trade-offs
 

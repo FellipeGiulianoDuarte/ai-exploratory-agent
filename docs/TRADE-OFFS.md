@@ -83,3 +83,19 @@ The system prioritizes **maintainability** and **observability** over premature 
 - What we have: Local `.env` and simple feature flags (ENABLE_PERSONAS).
 - What we can do: Migrate secrets to a secret manager, adopt typed validation (Zod) and remote feature flags.
 - Trade-offs: Improved security and dynamic control vs. higher operational cost and changes to developer workflow.
+
+11) Multi-Agent Architecture (State Machine + Supervisor Pattern)
+- What we have: **State Machine per Agent** with 11 states for predictable exploration flow, plus **Supervisor Pattern** for coordinating multiple agents.
+- Key components:
+  - `ExplorationState` - Enum with valid state transitions
+  - `ExplorationStateMachine` - Orchestrates state transitions via handlers
+  - `AgentContext` - Encapsulates all per-agent state
+  - `AgentSupervisor` - Coordinates multiple agents with `WorkQueue` and `SharedExplorationState`
+- What we can do:
+  - Add dynamic agent scaling based on discovered URL count
+  - Implement priority-based agent allocation
+  - Add agent specialization (e.g., security agent, performance agent)
+  - Implement agent communication for sharing insights
+- Trade-offs:
+  - Current: Predictable state transitions, easy to debug and test, clear separation of concerns. Each handler is isolated and testable. Supervisor enables parallel exploration.
+  - Advanced: More complex orchestration but better performance on large sites. Multi-agent adds coordination overhead and potential for race conditions.

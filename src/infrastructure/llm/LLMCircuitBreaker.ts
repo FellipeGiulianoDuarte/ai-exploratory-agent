@@ -1,4 +1,10 @@
-import { LLMPort } from '../../application/ports/LLMPort';
+import {
+  LLMPort,
+  LLMDecisionRequest,
+  LLMCompletionOptions,
+  LLMPageContext,
+  ExplorationHistoryEntry,
+} from '../../application/ports/LLMPort';
 import { loggers } from '../logging';
 
 /**
@@ -164,7 +170,7 @@ export class LLMCircuitBreaker implements LLMPort {
     return status;
   }
 
-  async decideNextAction(request: any, options?: any) {
+  async decideNextAction(request: LLMDecisionRequest, options?: LLMCompletionOptions) {
     const provider = this.getAvailableProvider();
     if (!provider) {
       throw new Error(
@@ -200,7 +206,7 @@ export class LLMCircuitBreaker implements LLMPort {
     }
   }
 
-  async analyzeFinding(finding: string, context: any) {
+  async analyzeFinding(finding: string, context: LLMPageContext) {
     const provider = this.getAvailableProvider();
     if (!provider) {
       throw new Error('All LLM providers unavailable or circuit breaker open.');
@@ -231,7 +237,7 @@ export class LLMCircuitBreaker implements LLMPort {
     }
   }
 
-  async generateSummary(history: any[], findings: string[]) {
+  async generateSummary(history: ExplorationHistoryEntry[], findings: string[]) {
     const provider = this.getAvailableProvider();
     if (!provider) {
       throw new Error('All LLM providers unavailable or circuit breaker open.');
