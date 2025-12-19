@@ -44,6 +44,13 @@ export class ScreenshotCaptureTool extends BaseTool<ScreenshotCaptureParams, Scr
   readonly description =
     'Captures a screenshot of the current page for visual evidence. Useful for documenting bugs, errors, and broken UI states.';
 
+  private readonly outputDir: string;
+
+  constructor(outputDir: string = './screenshots') {
+    super();
+    this.outputDir = outputDir;
+  }
+
   protected getParameterSchema(): Record<string, ToolParameterSchema> {
     return {
       fullPage: {
@@ -89,7 +96,17 @@ export class ScreenshotCaptureTool extends BaseTool<ScreenshotCaptureParams, Scr
 
     // Generate filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${sanitizedDesc}-${timestamp}.${params.type || 'png'}`;
+    const filename = `${this.outputDir}/${sanitizedDesc}-${timestamp}.${params.type || 'png'}`;
+
+    // Ensure directory exists
+    try {
+      const fs = await import('fs');
+      if (!fs.existsSync(this.outputDir)) {
+        fs.mkdirSync(this.outputDir, { recursive: true });
+      }
+    } catch {
+      // Ignore fs errors, letting screenshot fail naturaly if path is invalid
+    }
 
     // Capture screenshot
     const filepath = await context.browser.screenshot({

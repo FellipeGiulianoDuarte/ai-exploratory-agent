@@ -61,6 +61,87 @@ export class LLMAdapterFactory {
   }
 
   /**
+   * Create an LLM adapter with advanced resilience features.
+   */
+  static createAdvanced(config: {
+    provider: LLMProvider;
+    apiKey: string;
+    model?: string;
+    minConfidence?: number;
+    temperature?: number;
+    fallbacks?: LLMProvider[];
+    circuitBreaker?: {
+      enabled: boolean;
+      failureThreshold?: number;
+      resetTimeoutMs?: number;
+      successThreshold?: number;
+    };
+  }): LLMPort {
+    const primaryProvider = config.provider;
+    const fallbackProviders = (config.fallbacks || []).filter(p => p !== primaryProvider); // Ensure primary not in fallback
+
+    const providerList = [primaryProvider, ...fallbackProviders];
+    const adapters: { name: string; adapter: LLMPort }[] = [];
+
+    for (const provider of providerList) {
+      // Logic to get API key for specific provider if not the primary one
+      // For fallback providers, we need to know where to get their keys if not passed explicitly in a unified config.
+      // The current AppConfig passes a SINGLE apiKey (for the primary provider).
+      // However, ConfigFactory.load() logic for `apiKey` property does:
+      // apiKey: process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || ...
+      // This is a "first found" logic, which is bad for fallbacks because fallbacks need THEIR specific key.
+
+      // OPTION: We should read env vars for keys here inside `createAdvanced` if we want to support multi-provider fallbacks properly,
+      // OR we assume `config` object carries all keys (which it definitely does NOT in current AppConfig schema).
+
+      // So we MUST fall back to reading process.env for specific keys for fallbacks.
+      // This is a trade-off but necessary since `AppConfig` structure is biased towards single provider.
+
+      let apiKey: string = '';
+      if (provider === primaryProvider) {
+        apiKey = config.apiKey;
+      } else {
+        // Fallback key lookup
+        if (provider === 'openai') apiKey = process.env.OPENAI_API_KEY || '';
+        if (provider === 'gemini') apiKey = process.env.GEMINI_API_KEY || '';
+        if (provider === 'anthropic') apiKey = process.env.ANTHROPIC_API_KEY || '';
+      }
+
+      if (!apiKey) {
+        loggers.llm.warn(`${provider} API key not found, skipping.`);
+        continue;
+      }
+
+      const adapter = LLMAdapterFactory.create({
+        provider,
+        apiKey,
+        model: provider === primaryProvider ? config.model : undefined, // Model is usually provider specific so pass undefined for fallbacks to use default
+        temperature: config.temperature,
+      });
+
+      adapters.push({ name: provider, adapter });
+    }
+
+    if (adapters.length === 0) {
+      throw new Error(`No valid LLM adapters could be created.`);
+    }
+
+    // If only one adapter and circuit breaker disabled, return it directly
+    if (adapters.length === 1 && !config.circuitBreaker?.enabled) {
+      return adapters[0].adapter;
+    }
+
+    // Wrap with circuit breaker
+    return new LLMCircuitBreaker(adapters, {
+      enabled: config.circuitBreaker?.enabled ?? true,
+      failureThreshold: config.circuitBreaker?.failureThreshold,
+      resetTimeoutMs: config.circuitBreaker?.resetTimeoutMs,
+      successThreshold: config.circuitBreaker?.successThreshold,
+    });
+  }
+
+  /**
+   * @deprecated Use createAdvanced with config object instead.
    * Create an LLM adapter from environment variables.
    * Supports primary provider with optional fallback providers.
    * If ENABLE_LLM_CIRCUIT_BREAKER=true, wraps adapter(s) with circuit breaker.

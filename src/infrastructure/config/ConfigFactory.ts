@@ -37,6 +37,13 @@ export class ConfigFactory {
           ? parseInt(process.env.SCROLL_AMOUNT, 10)
           : undefined,
       },
+
+      browser: {
+        headless: process.env.HEADLESS !== 'false',
+        width: process.env.VIEWPORT_WIDTH ? parseInt(process.env.VIEWPORT_WIDTH, 10) : undefined,
+        height: process.env.VIEWPORT_HEIGHT ? parseInt(process.env.VIEWPORT_HEIGHT, 10) : undefined,
+        screenshotDir: process.env.SCREENSHOT_DIR,
+      },
       llm: {
         provider: (process.env.LLM_PROVIDER as 'openai' | 'gemini' | 'anthropic') || 'openai',
         apiKey:
@@ -51,11 +58,30 @@ export class ConfigFactory {
         temperature: process.env.LLM_TEMPERATURE
           ? parseFloat(process.env.LLM_TEMPERATURE)
           : undefined,
+        fallbacks: process.env.LLM_FALLBACK_PROVIDERS
+          ? (process.env.LLM_FALLBACK_PROVIDERS.split(',').map(p => p.trim()) as (
+              | 'openai'
+              | 'gemini'
+              | 'anthropic'
+            )[])
+          : undefined,
+        circuitBreaker: {
+          enabled: process.env.ENABLE_LLM_CIRCUIT_BREAKER !== 'false',
+          failureThreshold: process.env.LLM_CIRCUIT_BREAKER_FAILURE_THRESHOLD
+            ? parseInt(process.env.LLM_CIRCUIT_BREAKER_FAILURE_THRESHOLD, 10)
+            : undefined,
+          resetTimeoutMs: process.env.LLM_CIRCUIT_BREAKER_RESET_MS
+            ? parseInt(process.env.LLM_CIRCUIT_BREAKER_RESET_MS, 10)
+            : undefined,
+          successThreshold: process.env.LLM_CIRCUIT_BREAKER_SUCCESS_THRESHOLD
+            ? parseInt(process.env.LLM_CIRCUIT_BREAKER_SUCCESS_THRESHOLD, 10)
+            : undefined,
+        },
       },
-      browser: {
-        headless: process.env.HEADLESS !== 'false',
-        width: process.env.VIEWPORT_WIDTH ? parseInt(process.env.VIEWPORT_WIDTH, 10) : undefined,
-        height: process.env.VIEWPORT_HEIGHT ? parseInt(process.env.VIEWPORT_HEIGHT, 10) : undefined,
+      loopDetection: {
+        actionLoopThreshold: process.env.ACTION_LOOP_MAX_REPETITIONS
+          ? parseInt(process.env.ACTION_LOOP_MAX_REPETITIONS, 10)
+          : undefined,
       },
       personas: {
         enabled: process.env.ENABLE_PERSONAS !== 'false',

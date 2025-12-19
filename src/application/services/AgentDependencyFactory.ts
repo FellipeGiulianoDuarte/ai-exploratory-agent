@@ -81,8 +81,10 @@ export class AgentDependencyFactory {
     });
 
     const loopDetection = new LoopDetectionService({
-      toolLoopThreshold: 3,
-      actionLoopThreshold: 3,
+      toolHistorySize: this.config.loopDetection.toolHistorySize,
+      toolLoopThreshold: this.config.loopDetection.toolLoopThreshold,
+      actionHistorySize: this.config.loopDetection.actionHistorySize,
+      actionLoopThreshold: this.config.loopDetection.actionLoopThreshold,
     });
 
     const findingsProcessor = new FindingsProcessor({

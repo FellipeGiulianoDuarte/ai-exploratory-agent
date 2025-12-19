@@ -110,6 +110,7 @@ describe('ExplorationService Multi-Agent Integration', () => {
       headless: true,
       width: 1280,
       height: 720,
+      screenshotDir: './screenshots',
     },
     pageAnalysis: {
       maxVisibleText: 5000,
@@ -131,6 +132,12 @@ describe('ExplorationService Multi-Agent Integration', () => {
       threshold: 0.6,
       patternMatching: true,
       semanticMatching: true,
+    },
+    loopDetection: {
+      toolHistorySize: 10,
+      toolLoopThreshold: 3,
+      actionHistorySize: 20,
+      actionLoopThreshold: 4,
     },
   });
 

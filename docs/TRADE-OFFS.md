@@ -80,9 +80,11 @@ The system prioritizes **maintainability** and **observability** over premature 
   - Advanced: Better performance through optimization, data-driven improvements via A/B testing. However, adds complexity (versioning, metrics collection, template engine dependencies), increases maintenance burden, and requires careful testing to ensure prompt changes don't degrade quality.
 
 10) Configuration & Security
-- What we have: Local `.env` and simple feature flags (ENABLE_PERSONAS).
-- What we can do: Migrate secrets to a secret manager, adopt typed validation (Zod) and remote feature flags.
-- Trade-offs: Improved security and dynamic control vs. higher operational cost and changes to developer workflow.
+- What we have: **Strongly Typed Configuration (Zod)** validation on startup. Local `.env` for secrets.
+- What we can do: Migrate secrets to a secret manager and remote feature flags.
+- Trade-offs:
+  - Zod Validation: Prevents runtime errors, enables type safety.
+  - Secret Manager: Improved security vs. operational complexity.
 
 11) Multi-Agent Architecture (State Machine + Supervisor Pattern)
 - What we have: **State Machine per Agent** with 11 states for predictable exploration flow, plus **Supervisor Pattern** for coordinating multiple agents.

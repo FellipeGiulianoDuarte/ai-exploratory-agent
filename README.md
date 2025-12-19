@@ -185,6 +185,11 @@ The project follows **Clean Architecture** principles with **Domain-Driven Desig
 
 [docs/TRADE-OFFS.md](docs/TRADE-OFFS.md)
 
+## Future Roadmap
+
+The project roadmap tracks planned improvements in deployment, observability, code quality and AI capabilities:
+[docs/ROADMAP.md](docs/ROADMAP.md)
+
 ### 1. Port/Adapter Pattern
 All external dependencies (browser, LLM, storage) are abstracted behind interfaces, enabling easy testing and swapping implementations. This allows the agent to work with different LLM providers and browser automation tools without changing core logic.
 
@@ -263,6 +268,7 @@ The test generator creates Playwright specs that prioritize **false-negative avo
 | `CHECKPOINT_INTERVAL` | `10` | Steps between human checkpoints |
 | `ACTION_LOOP_MAX_REPETITIONS` | `2` | Max times same action can repeat before forcing alternative |
 | `HEADLESS` | `true` | Run browser in headless mode |
+| `SCREENSHOT_DIR` | `./screenshots` | Directory to save screenshots |
 | `VERBOSE` | `false` | Enable verbose logging |
 
 See `.env.example` for the complete list of configuration options including prompt configuration, persona settings, page exploration limits, and more.

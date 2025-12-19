@@ -40,10 +40,14 @@ export class CompositionRoot {
       viewportHeight: config.browser.height,
     });
 
-    const llm = LLMAdapterFactory.create({
+    const llm = LLMAdapterFactory.createAdvanced({
       provider: config.llm.provider,
       apiKey: config.llm.apiKey,
       model: config.llm.model,
+      minConfidence: config.llm.minConfidence,
+      temperature: config.llm.temperature,
+      fallbacks: config.llm.fallbacks,
+      circuitBreaker: config.llm.circuitBreaker,
     });
 
     const findingsRepository = new FileBasedFindingsRepository('./findings');
@@ -64,7 +68,7 @@ export class CompositionRoot {
     explorationService.registerTool(new BrokenImageDetectorTool());
     explorationService.registerTool(new ConsoleErrorAnalyzerTool());
     explorationService.registerTool(new NetworkErrorAnalyzerTool());
-    explorationService.registerTool(new ScreenshotCaptureTool());
+    explorationService.registerTool(new ScreenshotCaptureTool(config.browser.screenshotDir));
     explorationService.registerTool(new PageContentAnalyzerTool());
     explorationService.registerTool(new DropdownValidatorTool());
 

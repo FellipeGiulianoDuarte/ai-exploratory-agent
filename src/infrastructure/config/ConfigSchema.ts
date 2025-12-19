@@ -22,18 +22,36 @@ export const NavigationSchema = z.object({
   scrollAmount: z.number().int().positive().default(500),
 });
 
-export const LLMSchema = z.object({
-  provider: z.enum(['openai', 'anthropic', 'gemini']).default('openai'),
-  apiKey: z.string().min(1),
-  model: z.string().optional(),
-  minConfidence: z.number().min(0).max(1).default(0.6),
-  temperature: z.number().min(0).max(1).default(0.7),
+export const LoopDetectionSchema = z.object({
+  toolHistorySize: z.number().int().positive().default(10),
+  toolLoopThreshold: z.number().int().positive().default(3),
+  actionHistorySize: z.number().int().positive().default(20),
+  actionLoopThreshold: z.number().int().positive().default(4),
 });
 
 export const BrowserSchema = z.object({
   headless: z.boolean().default(true),
   width: z.number().int().positive().default(1280),
   height: z.number().int().positive().default(720),
+  screenshotDir: z.string().default('./screenshots'),
+});
+
+export const LLMSchema = z.object({
+  provider: z.enum(['openai', 'anthropic', 'gemini']).default('openai'),
+  apiKey: z.string().min(1),
+  model: z.string().optional(),
+  minConfidence: z.number().min(0).max(1).default(0.6),
+  temperature: z.number().min(0).max(1).default(0.7),
+  // Resilience & Fallback
+  fallbacks: z.array(z.enum(['openai', 'anthropic', 'gemini'])).default([]),
+  circuitBreaker: z
+    .object({
+      enabled: z.boolean().default(true),
+      failureThreshold: z.number().int().positive().default(5),
+      resetTimeoutMs: z.number().int().positive().default(60000),
+      successThreshold: z.number().int().positive().default(2),
+    })
+    .default({}),
 });
 
 export const PageAnalysisSchema = z.object({
@@ -68,6 +86,7 @@ export const AppConfigSchema = z.object({
   pageAnalysis: PageAnalysisSchema,
   personas: PersonaSchema,
   deduplication: DeduplicationSchema,
+  loopDetection: LoopDetectionSchema.default({}),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;

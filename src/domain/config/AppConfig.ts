@@ -26,12 +26,20 @@ export interface LLMConfig {
   model?: string;
   minConfidence: number;
   temperature: number;
+  fallbacks?: ('openai' | 'anthropic' | 'gemini')[];
+  circuitBreaker?: {
+    enabled: boolean;
+    failureThreshold?: number;
+    resetTimeoutMs?: number;
+    successThreshold?: number;
+  };
 }
 
 export interface BrowserConfig {
   headless: boolean;
   width: number;
   height: number;
+  screenshotDir: string;
 }
 
 export interface PageAnalysisConfig {
@@ -58,6 +66,13 @@ export interface DeduplicationConfig {
   semanticMatching: boolean;
 }
 
+export interface LoopDetectionConfig {
+  toolHistorySize: number;
+  toolLoopThreshold: number;
+  actionHistorySize: number;
+  actionLoopThreshold: number;
+}
+
 export interface AppConfig {
   exploration: ExplorationConfig;
   navigation: NavigationConfig;
@@ -66,4 +81,5 @@ export interface AppConfig {
   pageAnalysis: PageAnalysisConfig;
   personas: PersonaConfig;
   deduplication: DeduplicationConfig;
+  loopDetection: LoopDetectionConfig;
 }
