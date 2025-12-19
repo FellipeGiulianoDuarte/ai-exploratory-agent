@@ -22,7 +22,8 @@
     "validate:browser": "ts-node scripts/validate-browser.ts",
     "validate:tools": "ts-node scripts/validate-tools.ts",
     "validate:llm": "ts-node scripts/validate-llm.ts",
-    "explore": "ts-node src/main.ts"
+    "explore": "ts-node src/main.ts",
+    "resume": "ts-node src/main.ts"
   },
   "keywords": [
     "testing",

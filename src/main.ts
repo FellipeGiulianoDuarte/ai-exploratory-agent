@@ -27,15 +27,23 @@ async function main(): Promise<void> {
     const container = await CompositionRoot.initialize({
       url: cliTargetUrl,
       objective: cliObjective,
+      sessionId: options.sessionId,
     });
 
     const { explorationService, config, sessionRepository } = container;
 
     // Execute Exploration
-    const result = await explorationService.explore(
-      config.exploration.url,
-      config.exploration.objective
-    );
+    let result: import('./application/services/ExplorationService').ExplorationResult;
+
+    if (options.sessionId) {
+      logger.info(`\n🔄 Resuming session: ${options.sessionId}`);
+      result = await explorationService.resume(options.sessionId);
+    } else {
+      result = await explorationService.explore(
+        config.exploration.url,
+        config.exploration.objective
+      );
+    }
 
     // Generate markdown report
 

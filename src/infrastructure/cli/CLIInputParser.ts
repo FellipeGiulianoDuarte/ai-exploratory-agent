@@ -4,6 +4,7 @@
 export interface CLIOptions {
   url?: string;
   objective?: string;
+  sessionId?: string;
   help?: boolean;
 }
 
@@ -27,7 +28,13 @@ export class CLIInputParser {
         return options;
       }
 
-      if (arg === '--url') {
+      if (arg === '--session') {
+        const next = args[i + 1];
+        if (next && !next.startsWith('-')) {
+          options.sessionId = next;
+          i++;
+        }
+      } else if (arg === '--url') {
         const next = args[i + 1];
         if (next && !next.startsWith('-')) {
           options.url = next;
@@ -63,6 +70,7 @@ Usage:
 Options:
   --url <url>          Target URL to explore (can also be provided as first positional argument)
   --objective <obj>    Specific objective for the exploration
+  --session <id>       Resume a previous session by ID
   --help, -h           Show this help message
 
 Examples:

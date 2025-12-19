@@ -97,5 +97,11 @@ The system prioritizes **maintainability** and **observability** over premature 
   - Add agent specialization (e.g., security agent, performance agent)
   - Implement agent communication for sharing insights
 - Trade-offs:
-  - Current: Predictable state transitions, easy to debug and test, clear separation of concerns. Each handler is isolated and testable. Supervisor enables parallel exploration.
   - Advanced: More complex orchestration but better performance on large sites. Multi-agent adds coordination overhead and potential for race conditions.
+
+12) Session Resumption Strategy
+- What we have: **Logical State Resumption**. The `resume` feature restores the agent's memory (history, findings, LLM context) and navigates to the last URL, but **resets the browser process**.
+- What we can do: Implement full **Browser State Serialization** (saving cookies, local storage, session storage, and exact DOM state via CDP snapshots).
+- Trade-offs:
+  - Current (Logical): robust and simple. Avoids "stale element" errors because pages are re-parsed fresh. If the session crashed due to browser instability, a fresh browser is exactly what we want.
+  - Full Serialization: allows resuming mid-interaction (e.g., half-filled form), but is technically brittle and huge in data size. Restoring exact DOM state is often unreliable on dynamic sites.

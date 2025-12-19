@@ -28,7 +28,7 @@ export interface ApplicationContainer {
 
 export class CompositionRoot {
   static async initialize(
-    cliOptions: { url?: string; objective?: string } = {}
+    cliOptions: { url?: string; objective?: string; sessionId?: string } = {}
   ): Promise<ApplicationContainer> {
     // 1. Load Configuration
     const config = ConfigFactory.load(cliOptions);

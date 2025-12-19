@@ -82,10 +82,7 @@ export class ExplorationService {
    * explore() - Main entry point
    */
   async explore(startUrl: string, objective?: string): Promise<ExplorationResult> {
-    const startTime = Date.now();
-
     // Create Fresh Dependencies for this run
-    // Re-instantiate factory with current configuration (tools, callbacks, etc)
     const runFactory = new AgentDependencyFactory(
       this.config,
       this.browser,
@@ -106,15 +103,81 @@ export class ExplorationService {
     const session = ExplorationSession.create(sessionConfig);
     session.setEventBus(this.eventBus);
 
+    await this.browser.initialize();
+    await this.browser.navigate(startUrl);
+
+    await session.start();
+
+    return this.runExplorationLoop(session, deps);
+  }
+
+  /**
+   * Resume an existing exploration session.
+   */
+  async resume(sessionId: string): Promise<ExplorationResult> {
+    if (!this.sessionRepository) {
+      throw new Error('Session repository is required to resume sessions');
+    }
+
+    const session = await this.sessionRepository.findById(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    if (!session.isPaused && !session.isRunning) {
+      throw new Error(`Cannot resume session in status: ${session.status}`);
+    }
+
+    session.setEventBus(this.eventBus);
+
+    // Create Fresh Dependencies for this run
+    const runFactory = new AgentDependencyFactory(
+      this.config,
+      this.browser,
+      this.llm,
+      this.findingsRepository,
+      this.eventBus,
+      this.tools,
+      this.sessionRepository,
+      undefined,
+      this.humanCallback,
+      this.progressCallback
+    );
+
+    // TODO: Ideally we should restore dependencies state from session if needed
+    // For now we assume fresh dependencies are fine as long as they get context from session
+    const deps = runFactory.createDependencies();
+    this.currentDependencies = deps;
+
+    await this.browser.initialize();
+
+    // Navigate to the last URL visited in the session
+    const currentUrl = session.currentUrl;
+    if (currentUrl) {
+      await this.browser.navigate(currentUrl);
+    }
+
+    if (session.isPaused) {
+      session.resume();
+    }
+
+    return this.runExplorationLoop(session, deps);
+  }
+
+  /**
+   * Shared exploration loop logic
+   */
+  private async runExplorationLoop(
+    session: ExplorationSession,
+    deps: AgentDependencies
+  ): Promise<ExplorationResult> {
+    const startTime = Date.now();
     let stoppedReason: ExplorationResult['stoppedReason'] = 'completed';
 
     try {
-      await this.browser.initialize();
-      await this.browser.navigate(startUrl);
-
-      await session.start();
-
       const stateMachine = new ExplorationStateMachine(deps);
+
+      // Create context using the session which contains the history
       const context = createInitialContext('single-agent', session);
 
       const finalContext = await stateMachine.run(context);
@@ -125,10 +188,13 @@ export class ExplorationService {
         stoppedReason = finalContext.exitReason;
       }
 
-      await session.stop(stoppedReason);
+      // If it wasn't already stopped/completed by the state machine (e.g. user stop)
+      if (!session.hasEnded) {
+        await session.stop(stoppedReason);
+      }
+
       const findings = await this.findingsRepository.findBySessionId(session.id);
 
-      // Track token usage for getTokenUsage() getter
       this.lastTokenUsage = finalContext.tokenUsage;
 
       return {
@@ -136,14 +202,17 @@ export class ExplorationService {
         totalSteps: session.currentStep,
         findings,
         summary: `Explored ${finalContext.visitedUrls.size} pages using State Machine architecture`,
-        duration: Date.now() - startTime,
+        duration: Date.now() - startTime, // Note: This duration is for the current run only
         stoppedReason,
         pagesVisited: Array.from(finalContext.visitedUrls),
         history: session.getHistoryForLLM(),
         tokenUsage: finalContext.tokenUsage,
       };
     } catch (error) {
-      await session.stop('error');
+      // Only stop if not already ended
+      if (!session.hasEnded) {
+        await session.stop('error');
+      }
       throw error;
     } finally {
       await this.browser.close();

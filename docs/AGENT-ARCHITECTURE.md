@@ -24,6 +24,7 @@ flowchart LR
     %% Persistence and Results
     subgraph Persistence [Data & Output]
       H --> I[(Findings Repository)]:::data
+      B <--> S[(Session Repository)]:::data
       E --> I
       I --> J[Test Generator]:::core
       I --> L[Report Generator]:::core

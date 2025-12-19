@@ -57,6 +57,9 @@ npm run explore -- --objective "Test the checkout flow thoroughly"
 
 # Combine multiple parameters
 npm run explore -- --url https://example.com --objective "Focus on payment processing"
+
+# Resume a specific session
+npm run resume -- --session <session-id>
 ```
 
 **Available Parameters:**
