@@ -253,7 +253,7 @@ describe('LLMCircuitBreaker', () => {
 
       circuitBreaker = new LLMCircuitBreaker([{ name: 'primary', adapter: failingPrimary }], {
         failureThreshold: 1,
-        resetTimeoutMs: 10,
+        resetTimeoutMs: 100,
       });
 
       // Open the circuit by causing a failure
@@ -268,7 +268,7 @@ describe('LLMCircuitBreaker', () => {
       expect(status['primary'].state).toBe('open');
 
       // Wait for reset timeout
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Try again - circuit should transition to half-open when we call getAvailableProvider
       try {
@@ -312,7 +312,7 @@ describe('LLMCircuitBreaker', () => {
           { name: 'primary', adapter: recoveringAdapter },
           { name: 'fallback', adapter: fallbackAdapter },
         ],
-        { failureThreshold: 1, resetTimeoutMs: 10, successThreshold: 1 }
+        { failureThreshold: 1, resetTimeoutMs: 100, successThreshold: 1 }
       );
 
       // First call fails primary, uses fallback
@@ -322,7 +322,7 @@ describe('LLMCircuitBreaker', () => {
       expect(status['primary'].state).toBe('open');
 
       // Wait for reset timeout
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Now primary recovers (callCount > 1)
       await circuitBreaker.decideNextAction({} as LLMDecisionRequest);

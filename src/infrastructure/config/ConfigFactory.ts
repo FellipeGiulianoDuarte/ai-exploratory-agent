@@ -38,7 +38,7 @@ export class ConfigFactory {
           : undefined,
       },
       llm: {
-        provider: (process.env.LLM_PROVIDER as any) || 'openai',
+        provider: (process.env.LLM_PROVIDER as 'openai' | 'gemini' | 'anthropic') || 'openai',
         apiKey:
           process.env.OPENAI_API_KEY ||
           process.env.GEMINI_API_KEY ||

@@ -38,10 +38,12 @@ export interface ExplorationResult {
  * Refactored to delegate dependency creation and state management to AgentDependencyFactory.
  */
 export class ExplorationService {
-  private factory: AgentDependencyFactory;
-
   // Track the current/latest dependencies to support external access (getters)
   private currentDependencies?: AgentDependencies;
+  private tools: Map<string, Tool> = new Map();
+  private sessionRepository?: SessionRepository;
+  private humanCallback?: HumanInteractionCallback;
+  private progressCallback?: ProgressCallback;
 
   constructor(
     private browser: BrowserPort,
@@ -50,27 +52,7 @@ export class ExplorationService {
     private eventBus: EventBus,
     private config: AppConfig
   ) {
-    this.factory = new AgentDependencyFactory(
-      config,
-      browser,
-      llm,
-      findingsRepository,
-      eventBus,
-      new Map(), // Tools will be registered dynamically
-      undefined, // SessionRepo set via setter or unused
-      undefined, // PersonaManager initialized in check below
-      undefined, // callbacks
-      undefined
-    );
-
-    // Initialize Personas if enabled
-    // Note: In the original code, PersonaManager was created in constructor.
-    // We should probably move this logic into the Factory or keep it here and pass to Factory.
-    // Since Factory creates "Scope", maybe Personas are Global?
-    // Actually, Personas are stateless config, so Global is fine.
-    // For now, to keep behavior identical, we'll let the Factory handle it if passable,
-    // but the original code had `registerDefaultPersonas` in constructor.
-    // I already moved `personaManager` to Factory constructor param.
+    // Dependencies are created fresh for each exploration run via AgentDependencyFactory
   }
 
   /**
@@ -83,10 +65,6 @@ export class ExplorationService {
     // BETTER: Store tools here and pass them to Factory when creating dependencies.
     this.tools.set(tool.name, tool);
   }
-  private tools: Map<string, Tool> = new Map();
-  private sessionRepository?: SessionRepository;
-  private humanCallback?: HumanInteractionCallback;
-  private progressCallback?: ProgressCallback;
 
   setSessionRepository(repository: SessionRepository): void {
     this.sessionRepository = repository;
@@ -149,6 +127,9 @@ export class ExplorationService {
 
       await session.stop(stoppedReason);
       const findings = await this.findingsRepository.findBySessionId(session.id);
+
+      // Track token usage for getTokenUsage() getter
+      this.lastTokenUsage = finalContext.tokenUsage;
 
       return {
         sessionId: session.id,
@@ -247,12 +228,9 @@ export class ExplorationService {
     return this.currentDependencies?.personaManager;
   }
 
+  private lastTokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+
   getTokenUsage() {
-    // This is tricky because tokenUsage was stateful in the old service.
-    // But now it's returned by explore(). Accessing it mid-flight via this getter
-    // implies we need to peek into the active session.
-    // The old code updated `this.tokenUsage` at the end of explore().
-    // We can just return empty or track it if strictly needed, but for now:
-    return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    return this.lastTokenUsage;
   }
 }
