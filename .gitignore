@@ -35,6 +35,6 @@ sessions/
 test-results/
 test-screenshots/
 generated-tests/
-findings/
+/findings/
 screenshots/
 playwright-report/
